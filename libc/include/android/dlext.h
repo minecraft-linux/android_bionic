@@ -1,3 +1,4 @@
+#define __INTRODUCED_IN(a)
 /*
  * Copyright (C) 2014 The Android Open Source Project
  *

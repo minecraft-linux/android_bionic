@@ -547,7 +547,7 @@ static void* ReserveAligned(size_t size, size_t align) {
 
   // arc4random* is not available in first stage init because /dev/urandom hasn't yet been
   // created. Don't randomize then.
-  size_t n = is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
+  size_t n = 0;//is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
   uint8_t* start = first + n * PAGE_SIZE;
   munmap(mmap_ptr, start - mmap_ptr);
   munmap(start + size, mmap_ptr + mmap_size - (start + size));

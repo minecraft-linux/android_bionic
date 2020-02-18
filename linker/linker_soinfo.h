@@ -288,10 +288,11 @@ struct soinfo {
   ElfW(Sym)* find_symbol_by_address(const void* addr);
 
   ElfW(Addr) resolve_symbol_address(const ElfW(Sym)* s) const {
+  #if 0
     if (ELF_ST_TYPE(s->st_info) == STT_GNU_IFUNC) {
       return call_ifunc_resolver(s->st_value + load_bias);
     }
-
+  #endif
     return static_cast<ElfW(Addr)>(s->st_value + load_bias);
   }
 
@@ -345,7 +346,7 @@ struct soinfo {
   android_namespace_list_t& get_secondary_namespaces();
 
   soinfo_tls* get_tls() const {
-    return has_min_version(5) ? tls_.get() : nullptr;
+    return nullptr;
   }
 
   void set_mapped_by_caller(bool reserved_map);
@@ -428,6 +429,7 @@ struct soinfo {
 
   friend soinfo* get_libdl_info(const soinfo& linker_si);
 
+#if 0
   // version >= 4
   ElfW(Relr)* relr_;
   size_t relr_count_;
@@ -435,6 +437,7 @@ struct soinfo {
   // version >= 5
   std::unique_ptr<soinfo_tls> tls_;
   std::vector<TlsDynamicResolverArg> tlsdesc_args_;
+#endif
 };
 
 // This function is used by dlvsym() to calculate hash of sym_ver
