@@ -198,8 +198,7 @@ void BionicSmallObjectAllocator::alloc_page() {
     async_safe_fatal("mmap failed: %s", strerror(errno));
   }
 
-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map_ptr, PAGE_SIZE,
-        "bionic_alloc_small_objects");
+  
 
   small_object_page_info* const page =
       reinterpret_cast<small_object_page_info*>(map_ptr);
@@ -280,7 +279,7 @@ void* BionicAllocator::alloc_mmap(size_t align, size_t size) {
     async_safe_fatal("mmap failed: %s", strerror(errno));
   }
 
-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map_ptr, allocated_size, "bionic_alloc_lob");
+  
 
   void* result = static_cast<char*>(map_ptr) + header_size;
   page_info* info = get_page_info_unchecked(result);

@@ -130,7 +130,7 @@ void LinkerBlockAllocator::create_new_page() {
     abort(); // oom
   }
 
-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, page, kAllocateSize, "linker_alloc");
+  
 
   FreeBlockInfo* first_block = reinterpret_cast<FreeBlockInfo*>(page->bytes);
   first_block->next_block = free_block_list_;

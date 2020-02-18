@@ -51,8 +51,7 @@ bool ContextsSerialized::InitializeContextNodes() {
     return false;
   }
 
-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map_result, context_nodes_mmap_size,
-        "System property context nodes");
+  
 
   context_nodes_ = reinterpret_cast<ContextNode*>(map_result);
   num_context_nodes_ = num_context_nodes;

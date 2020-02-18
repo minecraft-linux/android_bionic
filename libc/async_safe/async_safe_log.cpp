@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#include <assert.h>
+#include "../include/assert.h"
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -47,7 +47,7 @@
 #include <android/set_abort_message.h>
 #include <async_safe/log.h>
 
-#include "private/CachedProperty.h"
+// #include "private/CachedProperty.h"
 #include "private/ErrnoRestorer.h"
 #include "private/ScopedPthreadMutexLocker.h"
 
@@ -471,7 +471,7 @@ static int open_log_socket() {
   } u;
   memset(&u, 0, sizeof(u));
   u.addrUn.sun_family = AF_UNIX;
-  strlcpy(u.addrUn.sun_path, "/dev/socket/logdw", sizeof(u.addrUn.sun_path));
+  // strlcpy(u.addrUn.sun_path, "/dev/socket/logdw", sizeof(u.addrUn.sun_path));
 
   if (TEMP_FAILURE_RETRY(connect(log_fd, &u.addr, sizeof(u.addrUn))) != 0) {
     __close(log_fd);
@@ -497,7 +497,7 @@ int async_safe_write_log(int priority, const char* tag, const char* msg) {
   char log_id = (priority == ANDROID_LOG_FATAL) ? LOG_ID_CRASH : LOG_ID_MAIN;
   vec[0].iov_base = &log_id;
   vec[0].iov_len = sizeof(log_id);
-  uint16_t tid = gettid();
+  uint16_t tid = syscall(SYS_gettid);
   vec[1].iov_base = &tid;
   vec[1].iov_len = sizeof(tid);
   timespec ts;

@@ -102,7 +102,7 @@ static void __init_alternate_signal_stack(pthread_internal_t* thread) {
 
     // We can only use const static allocated string for mapped region name, as Android kernel
     // uses the string pointer directly when dumping /proc/pid/maps.
-    prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, ss.ss_sp, ss.ss_size, "thread signal stack");
+    
   }
 }
 
@@ -322,8 +322,7 @@ void __set_stack_and_tls_vma_name(bool is_main_thread) {
     async_safe_format_buffer(name_buffer, arraysize(name_buffer), "stack_and_tls:%d", thread->tid);
     name = name_buffer;
   }
-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, thread->mmap_base_unguarded, thread->mmap_size_unguarded,
-        name);
+  
 }
 
 extern "C" int __rt_sigprocmask(int, const sigset64_t*, sigset64_t*, size_t);

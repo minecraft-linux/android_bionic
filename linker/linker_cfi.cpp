@@ -78,7 +78,7 @@ class ShadowWrite {
 };
 
 void CFIShadowWriter::FixupVmaName() {
-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, *shadow_start, kShadowSize, "cfi shadow");
+  
 }
 
 void CFIShadowWriter::AddConstant(uintptr_t begin, uintptr_t end, uint16_t v) {

@@ -101,8 +101,7 @@ __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 		if (p == MAP_FAILED)
 			goto unlock;
 /* BEGIN android-changed */
-		prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, p, pgsize,
-		    "atexit handlers");
+		
 /* END android-changed */
 		if (__atexit == NULL) {
 			memset(&p->fns[0], 0, sizeof(p->fns[0]));

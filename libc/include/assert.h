@@ -40,7 +40,7 @@
  * included multiple times, with and without NDEBUG defined.
  */
 
-#include <sys/cdefs.h>
+#include "sys/cdefs.h"
 
 #undef assert
 #undef __assert_no_op

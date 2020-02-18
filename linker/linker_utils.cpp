@@ -35,6 +35,7 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
+#include <string.h>
 
 void format_string(std::string* str, const std::vector<std::pair<std::string, std::string>>& params) {
   size_t pos = 0;
