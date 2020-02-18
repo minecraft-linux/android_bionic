@@ -47,7 +47,9 @@
 #include <android-base/properties.h>
 #include <android-base/scopeguard.h>
 #include <async_safe/log.h>
+#if 0
 #include <bionic/pthread_internal.h>
+#endif
 
 // Private C library headers.
 
@@ -73,6 +75,18 @@
 #include "android-base/strings.h"
 #include "android-base/stringprintf.h"
 #include "ziparchive/zip_archive.h"
+#include <linux/magic.h>
+#define SHT_ANDROID_REL 0x60000001
+#define SHT_ANDROID_RELA 0x60000002
+#define DT_ANDROID_REL 0x6000000f // DT_LOOS + 2
+#define DT_ANDROID_RELSZ 0x60000010 // DT_LOOS + 3
+#define DT_ANDROID_RELA 0x60000011 // DT_LOOS + 4
+#define DT_ANDROID_RELASZ 0x60000012 // DT_LOOS + 5
+#define SHT_ANDROID_RELR 0x6fffff00
+#define DT_ANDROID_RELR 0x6fffe000
+#define DT_ANDROID_RELRSZ 0x6fffe001
+#define DT_ANDROID_RELRENT 0x6fffe003
+#define DT_ANDROID_RELRCOUNT 0x6fffe005
 
 static std::unordered_map<void*, size_t> g_dso_handle_counters;
 
@@ -397,6 +411,7 @@ static bool realpath_fd(int fd, std::string* realpath) {
   return true;
 }
 
+#if 0
 // Returns the address of the current thread's copy of a TLS module. If the current thread doesn't
 // have a copy yet, allocate one on-demand if should_alloc is true, and return nullptr otherwise.
 static inline void* get_tls_block_for_this_thread(const soinfo_tls* si_tls, bool should_alloc) {
@@ -414,6 +429,7 @@ static inline void* get_tls_block_for_this_thread(const soinfo_tls* si_tls, bool
     return dtv->modules[__tls_module_id_to_idx(si_tls->module_id)];
   }
 }
+#endif
 
 #if defined(__arm__)
 
@@ -446,13 +462,17 @@ int do_dl_iterate_phdr(int (*cb)(dl_phdr_info* info, size_t size, void* data), v
     dl_info.dlpi_phnum = si->phnum;
     dl_info.dlpi_adds = g_module_load_counter;
     dl_info.dlpi_subs = g_module_unload_counter;
+#if 0
     if (soinfo_tls* tls_module = si->get_tls()) {
       dl_info.dlpi_tls_modid = tls_module->module_id;
       dl_info.dlpi_tls_data = get_tls_block_for_this_thread(tls_module, /*should_alloc=*/false);
     } else {
+#endif
       dl_info.dlpi_tls_modid = 0;
       dl_info.dlpi_tls_data = nullptr;
+#if 0
     }
+#endif
 
     rv = cb(&dl_info, sizeof(dl_phdr_info), data);
     if (rv != 0) {
@@ -1551,6 +1571,7 @@ static bool find_library_internal(android_namespace_t* ns,
 static void soinfo_unload(soinfo* si);
 
 static void shuffle(std::vector<LoadTask*>* v) {
+#if 0
   if (is_first_stage_init()) {
     // arc4random* is not available in first stage init because /dev/random
     // hasn't yet been created.
@@ -1561,6 +1582,7 @@ static void shuffle(std::vector<LoadTask*>* v) {
     size_t r = arc4random_uniform(n);
     std::swap((*v)[n-1], (*v)[r]);
   }
+#endif
 }
 
 // add_as_children - add first-level loaded libraries (i.e. library_names[], but
@@ -2340,6 +2362,9 @@ bool do_dlsym(void* handle,
 
     if ((bind == STB_GLOBAL || bind == STB_WEAK) && sym->st_shndx != 0) {
       if (type == STT_TLS) {
+        DL_SYM_ERR("TLS symbol %s", sym_name);
+        return false;
+#if 0
         // For a TLS symbol, dlsym returns the address of the current thread's
         // copy of the symbol.
         const soinfo_tls* tls_module = found->get_tls();
@@ -2350,6 +2375,7 @@ bool do_dlsym(void* handle,
         }
         void* tls_block = get_tls_block_for_this_thread(tls_module, /*should_alloc=*/true);
         *symbol = static_cast<char*>(tls_block) + sym->st_value;
+#endif
       } else {
         *symbol = reinterpret_cast<void*>(found->resolve_symbol_address(sym));
       }
@@ -2775,6 +2801,7 @@ void soinfo::apply_relr_reloc(ElfW(Addr) offset) {
 // Details of the encoding are described in this post:
 //   https://groups.google.com/d/msg/generic-abi/bX460iggiKg/Pi9aSwwABgAJ
 bool soinfo::relocate_relr() {
+#if 0
   ElfW(Relr)* begin = relr_;
   ElfW(Relr)* end = relr_ + relr_count_;
   constexpr size_t wordsize = sizeof(ElfW(Addr));
@@ -2808,6 +2835,8 @@ bool soinfo::relocate_relr() {
     base += (8*wordsize - 1) * wordsize;
   }
   return true;
+#endif
+  return false;
 }
 
 // An empty list of soinfos
@@ -2842,6 +2871,7 @@ bool soinfo::prelink_image() {
                                   &ARM_exidx, &ARM_exidx_count);
 #endif
 
+#if 0
   TlsSegment tls_segment;
   if (__bionic_get_tls_segment(phdr, phnum, load_bias, &tls_segment)) {
     if (!__bionic_check_tls_alignment(&tls_segment.alignment)) {
@@ -2854,6 +2884,7 @@ bool soinfo::prelink_image() {
     tls_ = std::make_unique<soinfo_tls>();
     tls_->segment = tls_segment;
   }
+#endif
 
   // Extract useful information from dynamic section.
   // Note that: "Except for the DT_NULL element at the end of the array,
@@ -3062,6 +3093,7 @@ bool soinfo::prelink_image() {
         return false;
 
 #endif
+#if 0
       case DT_RELR:
       case DT_ANDROID_RELR:
         relr_ = reinterpret_cast<ElfW(Relr)*>(load_bias + d->d_un.d_ptr);
@@ -3079,7 +3111,7 @@ bool soinfo::prelink_image() {
           return false;
         }
         break;
-
+#endif
       // Ignored (see DT_RELCOUNT comments for details).
       // There is no DT_RELRCOUNT specifically because it would only be ignored.
       case DT_ANDROID_RELRCOUNT:

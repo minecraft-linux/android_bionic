@@ -39,6 +39,6 @@ void notify_gdb_of_load(link_map* map);
 void notify_gdb_of_unload(link_map* map);
 void notify_gdb_of_libraries();
 
-extern struct r_debug _r_debug;
+// extern struct r_debug _r_debug;
 
 __END_DECLS
