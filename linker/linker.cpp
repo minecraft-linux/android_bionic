@@ -2335,8 +2335,8 @@ bool do_dlsym(void* handle,
   }
 
   if (sym != nullptr) {
-    uint32_t bind = ELF_ST_BIND(sym->st_info);
-    uint32_t type = ELF_ST_TYPE(sym->st_info);
+    uint32_t bind = ELF32_ST_BIND(sym->st_info);
+    uint32_t type = ELF32_ST_TYPE(sym->st_info);
 
     if ((bind == STB_GLOBAL || bind == STB_WEAK) && sym->st_shndx != 0) {
       if (type == STT_TLS) {

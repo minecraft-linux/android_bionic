@@ -419,7 +419,7 @@ static bool symbol_matches_soaddr(const ElfW(Sym)* sym, ElfW(Addr) soaddr) {
   // to the start of the solib. The solib only reserves space for the initialized part of the TLS
   // segment. (i.e. .tdata is followed by .tbss, and .tbss overlaps other sections.)
   return sym->st_shndx != SHN_UNDEF &&
-      ELF_ST_TYPE(sym->st_info) != STT_TLS &&
+      ELF32_ST_TYPE(sym->st_info) != STT_TLS &&
       soaddr >= sym->st_value &&
       soaddr < sym->st_value + sym->st_size;
 }
@@ -881,14 +881,18 @@ void soinfo::generate_handle() {
   // Make sure the handle is unique and does not collide
   // with special values which are RTLD_DEFAULT and RTLD_NEXT.
   do {
+#if 0
     if (!is_first_stage_init()) {
       arc4random_buf(&handle_, sizeof(handle_));
     } else {
+#endif
       // arc4random* is not available in init because /dev/urandom hasn't yet been
       // created. So, when running with init, use the monotonically increasing
       // numbers as handles
       handle_ += 2;
+#if 0
     }
+#endif
     // the least significant bit for the handle is always 1
     // making it easy to test the type of handle passed to
     // dl* functions.

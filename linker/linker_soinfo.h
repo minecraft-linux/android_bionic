@@ -289,7 +289,7 @@ struct soinfo {
 
   ElfW(Addr) resolve_symbol_address(const ElfW(Sym)* s) const {
   #if 0
-    if (ELF_ST_TYPE(s->st_info) == STT_GNU_IFUNC) {
+    if (ELF32_ST_TYPE(s->st_info) == STT_GNU_IFUNC) {
       return call_ifunc_resolver(s->st_value + load_bias);
     }
   #endif

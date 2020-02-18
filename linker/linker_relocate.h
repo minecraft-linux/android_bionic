@@ -39,6 +39,9 @@
 #include "linker_globals.h"
 #include "linker_soinfo.h"
 
+#define	__predict_true(exp)	__builtin_expect((exp) != 0, 1)
+#define	__predict_false(exp)	__builtin_expect((exp) != 0, 0)
+
 static constexpr ElfW(Versym) kVersymHiddenBit = 0x8000;
 
 enum RelocationKind {
@@ -58,12 +61,12 @@ template <bool Enabled> void count_relocation_if(RelocationKind kind) {
 void print_linker_stats();
 
 inline bool is_symbol_global_and_defined(const soinfo* si, const ElfW(Sym)* s) {
-  if (__predict_true(ELF_ST_BIND(s->st_info) == STB_GLOBAL ||
-                     ELF_ST_BIND(s->st_info) == STB_WEAK)) {
+  if (__predict_true(ELF32_ST_BIND(s->st_info) == STB_GLOBAL ||
+                     ELF32_ST_BIND(s->st_info) == STB_WEAK)) {
     return s->st_shndx != SHN_UNDEF;
-  } else if (__predict_false(ELF_ST_BIND(s->st_info) != STB_LOCAL)) {
+  } else if (__predict_false(ELF32_ST_BIND(s->st_info) != STB_LOCAL)) {
     DL_WARN("Warning: unexpected ST_BIND value: %d for \"%s\" in \"%s\" (ignoring)",
-            ELF_ST_BIND(s->st_info), si->get_string(s->st_name), si->get_realpath());
+            ELF32_ST_BIND(s->st_info), si->get_string(s->st_name), si->get_realpath());
   }
   return false;
 }

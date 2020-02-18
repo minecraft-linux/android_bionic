@@ -115,7 +115,7 @@ static inline bool lookup_symbol(Relocator& relocator, uint32_t r_sym, const cha
   }
 
   if (*sym == nullptr) {
-    if (ELF_ST_BIND(relocator.si_symtab[r_sym].st_info) != STB_WEAK) {
+    if (ELF32_ST_BIND(relocator.si_symtab[r_sym].st_info) != STB_WEAK) {
       DL_ERR("cannot locate symbol \"%s\" referenced by \"%s\"...", sym_name, relocator.si->get_realpath());
       return false;
     }
@@ -234,7 +234,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
       // By convention in ld.bfd and lld, an omitted symbol on a TLS relocation
       // is a reference to the current module.
       found_in = relocator.si;
-    } else if (ELF_ST_BIND(relocator.si_symtab[r_sym].st_info) == STB_LOCAL) {
+    } else if (ELF32_ST_BIND(relocator.si_symtab[r_sym].st_info) == STB_LOCAL) {
       // In certain situations, the Gold linker accesses a TLS symbol using a
       // relocation to an STB_LOCAL symbol in .dynsym of either STT_SECTION or
       // STT_TLS type. Bionic doesn't support these relocations, so issue an
@@ -243,7 +243,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
       //  - https://sourceware.org/bugzilla/show_bug.cgi?id=17699
       sym = &relocator.si_symtab[r_sym];
       DL_ERR("unexpected TLS reference to local symbol \"%s\" in \"%s\": sym type %d, rel type %u",
-             sym_name, relocator.si->get_realpath(), ELF_ST_TYPE(sym->st_info), r_type);
+             sym_name, relocator.si->get_realpath(), ELF32_ST_TYPE(sym->st_info), r_type);
       return false;
     } else if (!lookup_symbol<IsGeneral>(relocator, r_sym, sym_name, &found_in, &sym)) {
       return false;
@@ -255,7 +255,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
       return false;
     }
     if (sym != nullptr) {
-      if (ELF_ST_TYPE(sym->st_info) != STT_TLS) {
+      if (ELF32_ST_TYPE(sym->st_info) != STT_TLS) {
         // A toolchain should never output a relocation like this.
         DL_ERR("reference to non-TLS symbol \"%s\" from TLS relocation in \"%s\"",
                sym_name, relocator.si->get_realpath());
@@ -271,7 +271,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
       if (sym != nullptr) {
         const bool should_protect_segments = handle_text_relocs &&
                                              found_in == relocator.si &&
-                                             ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC;
+                                             ELF32_ST_TYPE(sym->st_info) == STT_GNU_IFUNC;
         if (should_protect_segments && !protect_segments()) return false;
         sym_addr = found_in->resolve_symbol_address(sym);
         if (should_protect_segments && !unprotect_segments()) return false;
