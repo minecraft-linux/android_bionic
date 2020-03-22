@@ -87,7 +87,7 @@ extern std::unordered_map<uintptr_t, soinfo*> g_soinfo_handles_map;
 // Error buffer "variable"
 char* linker_get_error_buffer();
 size_t linker_get_error_buffer_size();
-#define strlcpy(a,b,c) 0
+
 class DlErrorRestorer {
  public:
   DlErrorRestorer() {

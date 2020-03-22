@@ -30,6 +30,8 @@
 #include "linker_globals.h"
 #include "linker_soinfo.h"
 #include "linker_utils.h"
+#include <string.h>
+#include <algorithm>
 
 #include <dlfcn.h>
 

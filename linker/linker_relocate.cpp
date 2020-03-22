@@ -371,6 +371,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
       // IHI0044F.
       DL_ERR("%s COPY relocations are not supported", relocator.si->get_realpath());
       return false;
+#if 0
     case R_GENERIC_TLS_TPREL:
       count_relocation_if<IsGeneral>(kRelocRelative);
       {
@@ -419,7 +420,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
         *static_cast<ElfW(Addr)*>(rel_target) = result;
       }
       break;
-
+#endif
 #if defined(__aarch64__)
     // Bionic currently only implements TLSDESC for arm64. This implementation should work with
     // other architectures, as long as the resolver functions are implemented.
@@ -583,8 +584,10 @@ bool soinfo::relocate(const SymbolLookupList& lookup_list) {
   relocator.si_strtab = strtab_;
   relocator.si_strtab_size = has_min_version(1) ? strtab_size_ : SIZE_MAX;
   relocator.si_symtab = symtab_;
+#if 0
   relocator.tlsdesc_args = &tlsdesc_args_;
   relocator.tls_tp_base = __libc_shared_globals()->static_tls_layout.offset_thread_pointer();
+#endif
 
   if (android_relocs_ != nullptr) {
     // check signature
@@ -606,14 +609,14 @@ bool soinfo::relocate(const SymbolLookupList& lookup_list) {
       return false;
     }
   }
-
+#if 0
   if (relr_ != nullptr) {
     DEBUG("[ relocating %s relr ]", get_realpath());
     if (!relocate_relr()) {
       return false;
     }
   }
-
+#endif
 #if defined(USE_RELA)
   if (rela_ != nullptr) {
     DEBUG("[ relocating %s rela ]", get_realpath());

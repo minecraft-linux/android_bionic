@@ -36,6 +36,7 @@
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <cstdint>
+#include <cstring>
 
 // Update shadow without making it writable by preparing the data on the side and mremap-ing it in
 // place.

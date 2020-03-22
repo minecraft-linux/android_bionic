@@ -52,8 +52,10 @@
 #include "android-base/stringprintf.h"
 
 #include <async_safe/log.h>
+#if 0
 #include <bionic/libc_init_common.h>
 #include <bionic/pthread_internal.h>
+#endif
 
 #include <vector>
 
@@ -297,6 +299,7 @@ static ExecutableInfo load_executable(const char* orig_path) {
   return result;
 }
 
+#if 0
 static ElfW(Addr) linker_main(KernelArgumentBlock& args, const char* exe_to_load) {
   ProtectedDataGuard guard;
 
@@ -567,6 +570,7 @@ static void set_bss_vma_name(soinfo* si) {
     }
   }
 }
+#endif
 
 // TODO: There is a similar ifunc resolver calling loop in libc_init_static.cpp, but that version
 // uses weak symbols, which don't work in the linker prior to its relocation. This version also
@@ -594,6 +598,7 @@ static void call_ifunc_resolvers(ElfW(Addr) load_bias) {
 }
 #endif
 
+#if 0
 // Usable before ifunc resolvers have been called. This function is compiled with -ffreestanding.
 static void linker_memclr(void* dst, size_t cnt) {
   for (size_t i = 0; i < cnt; ++i) {
@@ -750,3 +755,4 @@ __linker_init_post_relocation(KernelArgumentBlock& args, soinfo& tmp_linker_so) 
   // Return the address that the calling assembly stub should jump to.
   return start_address;
 }
+#endif

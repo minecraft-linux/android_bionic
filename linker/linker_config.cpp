@@ -47,14 +47,12 @@
 #include <string>
 #include <unordered_map>
 
-int g_ld_debug_verbosity = 0;
+// int g_ld_debug_verbosity = 0;
 extern "C" void android_set_abort_message(const char* msg) {
 }
 
-#if 0
 #define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
 #include <sys/_system_properties.h>
-#endif
 
 class ConfigParser {
  public:

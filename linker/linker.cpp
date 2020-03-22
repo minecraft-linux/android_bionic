@@ -290,6 +290,7 @@ static bool translateSystemPathToApexPath(const char* name, std::string* out_nam
 static std::vector<std::string> g_ld_preload_names;
 
 static void notify_gdb_of_load(soinfo* info) {
+#if 0
   if (info->is_linker() || info->is_main_executable()) {
     // gdb already knows about the linker and the main executable.
     return;
@@ -306,10 +307,13 @@ static void notify_gdb_of_load(soinfo* info) {
   CHECK(map->l_name[0] != '\0');
 
   notify_gdb_of_load(map);
+#endif
 }
 
 static void notify_gdb_of_unload(soinfo* info) {
+#if 0
   notify_gdb_of_unload(&(info->link_map_head));
+#endif
 }
 
 LinkedListEntry<soinfo>* SoinfoListAllocator::alloc() {
@@ -1728,7 +1732,9 @@ bool find_libraries(android_namespace_t* ns,
     if (!si->is_linked() && !si->prelink_image()) {
       return false;
     }
+#if 0
     register_soinfo_tls(si);
+#endif
   }
 
   // Step 4: Construct the global group. Note: DF_1_GLOBAL bit of a library is
@@ -1836,9 +1842,9 @@ bool find_libraries(android_namespace_t* ns,
           // flag is set.
           link_extinfo = extinfo;
         }
-        if (__libc_shared_globals()->load_hook) {
-          __libc_shared_globals()->load_hook(si->load_bias, si->phdr, si->phnum);
-        }
+        // if (__libc_shared_globals()->load_hook) {
+        //   __libc_shared_globals()->load_hook(si->load_bias, si->phdr, si->phnum);
+        // }
         lookup_list.set_dt_symbolic_lib(si->has_DT_SYMBOLIC ? si : nullptr);
         if (!si->link_image(lookup_list, local_group_root, link_extinfo, &relro_fd_offset) ||
             !get_cfi_shadow()->AfterLoad(si, solist_get_head())) {
@@ -1978,10 +1984,10 @@ static void soinfo_unload_impl(soinfo* root) {
            si);
     ++g_module_unload_counter;
     notify_gdb_of_unload(si);
-    unregister_soinfo_tls(si);
-    if (__libc_shared_globals()->unload_hook) {
-      __libc_shared_globals()->unload_hook(si->load_bias, si->phdr, si->phnum);
-    }
+    // unregister_soinfo_tls(si);
+    // if (__libc_shared_globals()->unload_hook) {
+    //   __libc_shared_globals()->unload_hook(si->load_bias, si->phdr, si->phnum);
+    // }
     get_cfi_shadow()->BeforeUnload(si);
     soinfo_free(si);
   }
