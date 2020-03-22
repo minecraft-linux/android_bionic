@@ -74,14 +74,19 @@ static void set_bss_vma_name(soinfo* si);
 
 // TODO (dimtiry): remove somain, rename solist to solist_head
 static soinfo* solist;
-static soinfo* sonext;
+static soinfo* sonext = 0;
 static soinfo* somain; // main process, always the one after libdl_info
 static soinfo* solinker;
 static soinfo* vdso; // vdso if present
 
 void solist_add_soinfo(soinfo* si) {
-  sonext->next = si;
-  sonext = si;
+  if(sonext) {
+    sonext->next = si;
+    sonext = si;
+  } else {
+    sonext = si;
+    sonext->next = si;
+  }
 }
 
 bool solist_remove_soinfo(soinfo* si) {

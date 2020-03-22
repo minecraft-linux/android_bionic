@@ -68,6 +68,7 @@ static uint32_t ParseProperty(const std::string& value) {
   return flags;
 }
 
+#if 0
 static void GetAppSpecificProperty(char* buffer) {
   // Get process basename.
   const char* process_name_start = basename(g_argv[0]);
@@ -83,6 +84,7 @@ static void GetAppSpecificProperty(char* buffer) {
   std::string property_name = std::string("debug.ld.app.") + process_name;
   __system_property_get(property_name.c_str(), buffer);
 }
+#endif
 
 void LinkerLogger::ResetState() {
   // The most likely scenario app is not debuggable and
@@ -92,30 +94,31 @@ void LinkerLogger::ResetState() {
   }
 
   // This is a convenient place to check whether the greylist should be disabled for testing.
-  static CachedProperty greylist_disabled("debug.ld.greylist_disabled");
-  bool old_value = g_greylist_disabled;
-  g_greylist_disabled = (strcmp(greylist_disabled.Get(), "true") == 0);
-  if (g_greylist_disabled != old_value) {
-    async_safe_format_log(ANDROID_LOG_INFO, "linker", "%s greylist",
-                          g_greylist_disabled ? "Disabling" : "Enabling");
-  }
+  // static CachedProperty greylist_disabled("debug.ld.greylist_disabled");
+  // bool old_value = g_greylist_disabled;
+  g_greylist_disabled = false;//(strcmp(greylist_disabled.Get(), "true") == 0);
+  // if (g_greylist_disabled != old_value) {
+  //   async_safe_format_log(ANDROID_LOG_INFO, "linker", "%s greylist",
+  //                         g_greylist_disabled ? "Disabling" : "Enabling");
+  // }
 
   flags_ = 0;
 
   // For logging, check the flag applied to all processes first.
-  static CachedProperty debug_ld_all("debug.ld.all");
-  flags_ |= ParseProperty(debug_ld_all.Get());
+  //static CachedProperty debug_ld_all("debug.ld.all");
+  // flags_ |= ParseProperty(debug_ld_all.Get());
 
   // Safeguard against a NULL g_argv. Ignore processes started without argv (http://b/33276926).
   if (g_argv == nullptr || g_argv[0] == nullptr) {
     return;
   }
-
+#if 0
   // Otherwise check the app-specific property too.
   // We can't easily cache the property here because argv[0] changes.
   char debug_ld_app[PROP_VALUE_MAX] = {};
   GetAppSpecificProperty(debug_ld_app);
   flags_ |= ParseProperty(debug_ld_app);
+#endif
 }
 
 void LinkerLogger::Log(const char* format, ...) {

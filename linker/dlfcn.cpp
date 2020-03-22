@@ -297,9 +297,9 @@ void __loader_remove_thread_local_dtor(void* dso_handle) {
   decrement_dso_handle_reference_counter(dso_handle);
 }
 
-libc_shared_globals* __loader_shared_globals() {
-  return __libc_shared_globals();
-}
+// libc_shared_globals* __loader_shared_globals() {
+//   return __libc_shared_globals();
+// }
 
 static uint8_t __libdl_info_buf[sizeof(soinfo)] __attribute__((aligned(8)));
 static soinfo* __libdl_info = nullptr;
