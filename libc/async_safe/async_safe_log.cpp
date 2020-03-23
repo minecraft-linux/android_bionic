@@ -471,7 +471,7 @@ static int open_log_socket() {
   } u;
   memset(&u, 0, sizeof(u));
   u.addrUn.sun_family = AF_UNIX;
-  // strlcpy(u.addrUn.sun_path, "/dev/socket/logdw", sizeof(u.addrUn.sun_path));
+  strlcpy(u.addrUn.sun_path, "/dev/socket/logdw", sizeof(u.addrUn.sun_path));
 
   if (TEMP_FAILURE_RETRY(connect(log_fd, &u.addr, sizeof(u.addrUn))) != 0) {
     __close(log_fd);
