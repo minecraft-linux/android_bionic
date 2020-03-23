@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#include <assert.h>
+#include "../include/assert.h"
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
