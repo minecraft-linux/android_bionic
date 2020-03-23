@@ -497,7 +497,7 @@ int async_safe_write_log(int priority, const char* tag, const char* msg) {
   char log_id = (priority == ANDROID_LOG_FATAL) ? LOG_ID_CRASH : LOG_ID_MAIN;
   vec[0].iov_base = &log_id;
   vec[0].iov_len = sizeof(log_id);
-  uint16_t tid = syscall(SYS_gettid);
+  uint16_t tid = gettid();
   vec[1].iov_base = &tid;
   vec[1].iov_len = sizeof(tid);
   timespec ts;
