@@ -288,11 +288,9 @@ struct soinfo {
   ElfW(Sym)* find_symbol_by_address(const void* addr);
 
   ElfW(Addr) resolve_symbol_address(const ElfW(Sym)* s) const {
-  #if 0
     if (ELF32_ST_TYPE(s->st_info) == STT_GNU_IFUNC) {
       return call_ifunc_resolver(s->st_value + load_bias);
     }
-  #endif
     return static_cast<ElfW(Addr)>(s->st_value + load_bias);
   }
 
