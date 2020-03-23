@@ -45,6 +45,7 @@ static bool should_trace() {
 }
 
 static int get_trace_marker_fd() {
+#if 0
   g_lock.lock();
   if (g_trace_marker_fd == -1) {
     g_trace_marker_fd = open("/sys/kernel/tracing/trace_marker", O_CLOEXEC | O_WRONLY);
@@ -54,6 +55,9 @@ static int get_trace_marker_fd() {
   }
   g_lock.unlock();
   return g_trace_marker_fd;
+#else
+  return 0;
+#endif
 }
 
 void bionic_trace_begin(const char* message) {
