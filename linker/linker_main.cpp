@@ -74,19 +74,19 @@ static void set_bss_vma_name(soinfo* si);
 
 // TODO (dimtiry): remove somain, rename solist to solist_head
 static soinfo* solist;
-static soinfo* sonext = 0;
+static soinfo* sonext;
 static soinfo* somain; // main process, always the one after libdl_info
 static soinfo* solinker;
 static soinfo* vdso; // vdso if present
 
+void solist_init() {
+  sonext = solist = solinker = soinfo::load_empty_library("linker.so");
+  solist_add_soinfo(soinfo::load_empty_library("linker_main"));
+}
+
 void solist_add_soinfo(soinfo* si) {
-  if(sonext) {
-    sonext->next = si;
-    sonext = si;
-  } else {
-    sonext = si;
-    sonext->next = si;
-  }
+  sonext->next = si;
+  sonext = si;
 }
 
 bool solist_remove_soinfo(soinfo* si) {
