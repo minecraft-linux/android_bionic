@@ -2798,6 +2798,30 @@ bool soinfo::lookup_version_info(const VersionTracker& version_tracker, ElfW(Wor
   return true;
 }
 
+soinfo * soinfo::load_empty_library(const char *name)
+{
+    const char *bname;
+    soinfo *si = NULL;
+
+    bname = strrchr(name, '/');
+    si = soinfo_alloc(&g_default_namespace, bname ? bname + 1 : name, nullptr, 0, 0);
+    if (si == NULL)
+        goto fail;
+
+    si->base = 0;
+    si->size = 0;
+    si->flags_ = FLAG_LINKED;
+    // si->entry = 0;
+    si->dynamic = (decltype(si->dynamic))-1;
+    si->constructors_called = 1;
+
+    return si;
+
+    fail:
+    if (si) soinfo_free(si);
+    return NULL;
+}
+
 void soinfo::apply_relr_reloc(ElfW(Addr) offset) {
   ElfW(Addr) address = offset + load_bias;
   *reinterpret_cast<ElfW(Addr)*>(address) += load_bias;

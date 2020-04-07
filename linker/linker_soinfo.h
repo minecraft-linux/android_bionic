@@ -369,6 +369,9 @@ struct soinfo {
   bool lookup_version_info(const VersionTracker& version_tracker, ElfW(Word) sym,
                            const char* sym_name, const version_info** vi);
 
+
+  static soinfo * load_empty_library(const char *name);
+
  private:
   bool relocate(const SymbolLookupList& lookup_list);
   bool relocate_relr();
