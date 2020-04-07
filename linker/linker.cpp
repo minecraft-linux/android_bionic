@@ -2805,6 +2805,7 @@ soinfo * soinfo::load_empty_library(const char *name)
 
     bname = strrchr(name, '/');
     si = soinfo_alloc(&g_default_namespace, bname ? bname + 1 : name, nullptr, 0, 0);
+    si->set_soname(bname ? bname + 1 : name);
     if (si == NULL)
         goto fail;
 
