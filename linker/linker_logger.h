@@ -53,7 +53,7 @@ class LinkerLogger {
   void Log(const char* format, ...) __printflike(2, 3);
 
   uint32_t IsEnabled(uint32_t type) {
-    return flags_ & type;
+    return 1;//flags_ & type;
   }
 
  private:
