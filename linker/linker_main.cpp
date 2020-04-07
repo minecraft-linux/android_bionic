@@ -85,8 +85,10 @@ void solist_init() {
 }
 
 void solist_add_soinfo(soinfo* si) {
-  sonext->next = si;
-  sonext = si;
+  if(sonext) {
+    sonext->next = si;
+    sonext = si;
+  }
 }
 
 bool solist_remove_soinfo(soinfo* si) {
