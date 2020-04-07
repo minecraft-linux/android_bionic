@@ -59,7 +59,7 @@ bool MappedFileFragment::Map(int fd, off64_t base_offset, size_t elf_offset, siz
   CHECK(map_size >= size);
 
   uint8_t* map_start = static_cast<uint8_t*>(
-                          mmap64(nullptr, map_size, PROT_READ, MAP_PRIVATE, fd, page_min));
+                          mmap64(nullptr, map_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, page_min));
 
   if (map_start == MAP_FAILED) {
     return false;

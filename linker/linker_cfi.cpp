@@ -71,7 +71,7 @@ class ShadowWrite {
 
   ~ShadowWrite() {
     size_t size = aligned_end - aligned_start;
-    mprotect(tmp_start, size, PROT_READ);
+    mprotect(tmp_start, size, PROT_READ | PROT_WRITE);
     void* res = mremap(tmp_start, size, size, MREMAP_MAYMOVE | MREMAP_FIXED,
                        reinterpret_cast<void*>(aligned_start));
     CHECK(res != MAP_FAILED);
@@ -155,7 +155,7 @@ uintptr_t soinfo_find_cfi_check(soinfo* si) {
 
 uintptr_t CFIShadowWriter::MapShadow() {
   void* p =
-      mmap(nullptr, kShadowSize, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+      mmap(nullptr, kShadowSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   CHECK(p != MAP_FAILED);
   return reinterpret_cast<uintptr_t>(p);
 }
@@ -205,7 +205,7 @@ bool CFIShadowWriter::NotifyLibDl(soinfo* solist, uintptr_t p) {
   shadow_start = reinterpret_cast<uintptr_t* (*)(uintptr_t)>(cfi_init)(p);
   CHECK(shadow_start != nullptr);
   CHECK(*shadow_start == p);
-  mprotect(shadow_start, PAGE_SIZE, PROT_READ);
+  mprotect(shadow_start, PAGE_SIZE, PROT_READ | PROT_WRITE);
   return true;
 }
 

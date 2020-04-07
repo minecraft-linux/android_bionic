@@ -819,7 +819,7 @@ static int _phdr_table_set_gnu_relro_prot(const ElfW(Phdr)* phdr_table, size_t p
  */
 int phdr_table_protect_gnu_relro(const ElfW(Phdr)* phdr_table,
                                  size_t phdr_count, ElfW(Addr) load_bias) {
-  return _phdr_table_set_gnu_relro_prot(phdr_table, phdr_count, load_bias, PROT_READ);
+  return _phdr_table_set_gnu_relro_prot(phdr_table, phdr_count, load_bias, PROT_READ | PROT_WRITE);
 }
 
 /* Serialize the GNU relro segments to the given file descriptor. This can be
@@ -856,7 +856,7 @@ int phdr_table_serialize_gnu_relro(const ElfW(Phdr)* phdr_table,
     if (written != size) {
       return -1;
     }
-    void* map = mmap(reinterpret_cast<void*>(seg_page_start), size, PROT_READ,
+    void* map = mmap(reinterpret_cast<void*>(seg_page_start), size, PROT_READ | PROT_WRITE,
                      MAP_PRIVATE|MAP_FIXED, fd, *file_offset);
     if (map == MAP_FAILED) {
       return -1;
@@ -896,7 +896,7 @@ int phdr_table_map_gnu_relro(const ElfW(Phdr)* phdr_table,
   off_t file_size = file_stat.st_size;
   void* temp_mapping = nullptr;
   if (file_size > 0) {
-    temp_mapping = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    temp_mapping = mmap(nullptr, file_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (temp_mapping == MAP_FAILED) {
       return -1;
     }
@@ -943,7 +943,7 @@ int phdr_table_map_gnu_relro(const ElfW(Phdr)* phdr_table,
       // Map over similar pages.
       if (mismatch_offset > match_offset) {
         void* map = mmap(mem_base + match_offset, mismatch_offset - match_offset,
-                         PROT_READ, MAP_PRIVATE|MAP_FIXED, fd, *file_offset + match_offset);
+                         PROT_READ | PROT_WRITE, MAP_PRIVATE|MAP_FIXED, fd, *file_offset + match_offset);
         if (map == MAP_FAILED) {
           munmap(temp_mapping, file_size);
           return -1;

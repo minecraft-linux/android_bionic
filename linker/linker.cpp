@@ -498,7 +498,7 @@ ProtectedDataGuard::ProtectedDataGuard() {
 
 ProtectedDataGuard::~ProtectedDataGuard() {
   if (--ref_count_ == 0) {
-    protect_data(PROT_READ);
+    protect_data(PROT_READ | PROT_WRITE);
   }
 }
 
