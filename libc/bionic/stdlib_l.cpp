@@ -27,33 +27,33 @@
  */
 
 #include <stdlib.h>
-#include <xlocale.h>
+// #include <xlocale.h>
 
-double strtod_l(const char* s, char** end_ptr, locale_t) {
+double strtod_l(const char* s, char** end_ptr, locale_t l) {
   return strtod(s, end_ptr);
 }
 
-float strtof_l(const char* s, char** end_ptr, locale_t) {
+float strtof_l(const char* s, char** end_ptr, locale_t l) {
   return strtof(s, end_ptr);
 }
 
-long strtol_l(const char* s, char** end_ptr, int base, locale_t) {
+long strtol_l(const char* s, char** end_ptr, int base, locale_t l) {
   return strtol(s, end_ptr, base);
 }
 
-long double strtold_l(const char* s, char** end_ptr, locale_t) {
+long double strtold_l(const char* s, char** end_ptr, locale_t l) {
   return strtold(s, end_ptr);
 }
 
-long long strtoll_l(const char* s, char** end_ptr, int base, locale_t) {
+long long strtoll_l(const char* s, char** end_ptr, int base, locale_t l) {
   return strtoll(s, end_ptr, base);
 }
 
-unsigned long strtoul_l(const char* s, char** end_ptr, int base, locale_t) {
+unsigned long strtoul_l(const char* s, char** end_ptr, int base, locale_t l) {
   return strtoul(s, end_ptr, base);
 }
 
-unsigned long long strtoull_l(const char* s, char** end_ptr, int base, locale_t) {
+unsigned long long strtoull_l(const char* s, char** end_ptr, int base, locale_t l) {
   return strtoull(s, end_ptr, base);
 }
 
