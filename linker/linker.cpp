@@ -868,6 +868,7 @@ static const ElfW(Sym)* dlsym_handle_lookup(soinfo* si,
 }
 
 soinfo* find_containing_library(const void* p) {
+  if(!p) return solist_get_somain();
   // Addresses within a library may be tagged if they point to globals. Untag
   // them so that the bounds check succeeds.
   ElfW(Addr) address = reinterpret_cast<ElfW(Addr)>(untag_address(p));
@@ -2800,27 +2801,41 @@ bool soinfo::lookup_version_info(const VersionTracker& version_tracker, ElfW(Wor
 
 soinfo * soinfo::load_empty_library(const char *name)
 {
-    const char *bname;
-    soinfo *si = NULL;
+  const char *bname;
+  soinfo *si = NULL;
 
-    bname = strrchr(name, '/');
-    si = soinfo_alloc(&g_default_namespace, bname ? bname + 1 : name, nullptr, 0, 0);
-    si->set_soname(bname ? bname + 1 : name);
-    if (si == NULL)
-        goto fail;
+  bname = strrchr(name, '/');
+  si = soinfo_alloc(&g_default_namespace, bname ? bname + 1 : name, nullptr, 0, 0);
+  si->set_soname(bname ? bname + 1 : name);
+  if (si == NULL)
+      goto fail;
 
-    si->base = 0;
-    si->size = 0;
-    si->flags_ = FLAG_LINKED;
-    // si->entry = 0;
-    si->dynamic = (decltype(si->dynamic))-1;
-    si->constructors_called = 1;
+  si->base = 0;
+  si->size = 0;
+  si->flags_ = FLAG_LINKED;
+  // si->entry = 0;
+  si->dynamic = (decltype(si->dynamic))-1;
+  si->constructors_called = 1;
+  si->local_group_root_ = si;
+  new (&si->symbols) std::unordered_map<std::string, std::shared_ptr<ElfW(Sym)>>();
 
-    return si;
+  return si;
 
-    fail:
-    if (si) soinfo_free(si);
-    return NULL;
+  fail:
+  if (si) soinfo_free(si);
+  return NULL;
+}
+
+soinfo *soinfo::load_library(const char *name, const std::unordered_map<std::string, void*>& symbols) {
+  auto lib = load_empty_library(name);
+  if(symbols.size()) {
+    // lib->symbols.reserve(symbols.size());
+    for (auto&& s : symbols) {
+      // Elf64_Sym
+      (lib->symbols[s.first] = std::make_shared<ElfW(Sym)>())->st_value = (ElfW(Addr))s.second;
+    }
+  }
+  return lib;
 }
 
 void soinfo::apply_relr_reloc(ElfW(Addr) offset) {

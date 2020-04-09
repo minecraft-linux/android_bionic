@@ -33,6 +33,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "private/bionic_elf_tls.h"
 #include "linker_namespaces.h"
@@ -371,6 +372,7 @@ struct soinfo {
 
 
   static soinfo * load_empty_library(const char *name);
+  static soinfo * load_library(const char *name, const std::unordered_map<std::string, void*>& symbols);
 
  private:
   bool relocate(const SymbolLookupList& lookup_list);
@@ -439,6 +441,7 @@ struct soinfo {
   std::unique_ptr<soinfo_tls> tls_;
   std::vector<TlsDynamicResolverArg> tlsdesc_args_;
 #endif
+  std::unordered_map<std::string, std::shared_ptr<ElfW(Sym)>> symbols;
 };
 
 // This function is used by dlvsym() to calculate hash of sym_ver

@@ -324,7 +324,15 @@ SymbolLookupLib soinfo::get_lookup_lib() {
 
 const ElfW(Sym)* soinfo::find_symbol_by_name(SymbolName& symbol_name,
                                              const version_info* vi) const {
-  return this->bucket_ ? (is_gnu_hash() ? gnu_lookup(symbol_name, vi) : elf_lookup(symbol_name, vi)) : nullptr;
+  if(this->bucket_) {
+    return is_gnu_hash() ? gnu_lookup(symbol_name, vi) : elf_lookup(symbol_name, vi);
+  }
+  else if (this->symbols.size()) {
+    // Custom Library
+    auto sym = this->symbols.find(symbol_name.get_name());
+    return sym != this->symbols.end() ? sym->second.get() : (ElfW(Sym)*)nullptr;
+  }
+  return (ElfW(Sym)*)nullptr;
 }
 
 const ElfW(Sym)* soinfo::gnu_lookup(SymbolName& symbol_name, const version_info* vi) const {
