@@ -33,7 +33,7 @@
 #include "platform/bionic/page.h"
 
 #include <sys/mman.h>
-#include <sys/prctl.h>
+// #include <sys/prctl.h>
 #include <sys/types.h>
 #include <cstdint>
 #include <cstring>
@@ -72,9 +72,9 @@ class ShadowWrite {
   ~ShadowWrite() {
     size_t size = aligned_end - aligned_start;
     mprotect(tmp_start, size, PROT_READ | PROT_WRITE);
-    void* res = mremap(tmp_start, size, size, MREMAP_MAYMOVE | MREMAP_FIXED,
-                       reinterpret_cast<void*>(aligned_start));
-    CHECK(res != MAP_FAILED);
+    // void* res = mremap(tmp_start, size, size, MREMAP_MAYMOVE | MREMAP_FIXED,
+    //                    reinterpret_cast<void*>(aligned_start));
+    // CHECK(res != MAP_FAILED);
   }
 };
 

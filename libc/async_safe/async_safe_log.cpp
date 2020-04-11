@@ -51,11 +51,14 @@
 #include "private/ErrnoRestorer.h"
 #include "private/ScopedPthreadMutexLocker.h"
 
+#if 0
 // Don't call libc's close, since it might call back into us as a result of fdsan.
 #pragma GCC poison close
 static int __close(int fd) {
   return syscall(__NR_close, fd);
 }
+#endif
+#define __close close
 
 // Must be kept in sync with frameworks/base/core/java/android/util/EventLog.java.
 enum AndroidEventLogType {
@@ -454,6 +457,8 @@ static int write_stderr(const char* tag, const char* msg) {
 }
 
 static int open_log_socket() {
+  return -1;
+  #if 0
   // ToDo: Ideally we want this to fail if the gid of the current
   // process is AID_LOGD, but will have to wait until we have
   // registered this in private/android_filesystem_config.h. We have
@@ -479,6 +484,7 @@ static int open_log_socket() {
   }
 
   return log_fd;
+  #endif
 }
 
 struct log_time {  // Wire format

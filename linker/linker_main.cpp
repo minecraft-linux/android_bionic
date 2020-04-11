@@ -44,8 +44,8 @@
 #include "private/bionic_auxv.h"
 #include "private/bionic_call_ifunc_resolver.h"
 #include "private/bionic_globals.h"
-#include "private/bionic_tls.h"
-#include "private/KernelArgumentBlock.h"
+//#include "private/bionic_tls.h"
+// #include "private/KernelArgumentBlock.h"
 
 #include "android-base/unique_fd.h"
 #include "android-base/strings.h"
@@ -162,6 +162,7 @@ static void parse_LD_PRELOAD(const char* path) {
 
 // An empty list of soinfos
 static soinfo_list_t g_empty_list;
+#if 0
 
 static void add_vdso() {
   ElfW(Ehdr)* ehdr_vdso = reinterpret_cast<ElfW(Ehdr)*>(getauxval(AT_SYSINFO_EHDR));
@@ -306,7 +307,6 @@ static ExecutableInfo load_executable(const char* orig_path) {
   return result;
 }
 
-#if 0
 static ElfW(Addr) linker_main(KernelArgumentBlock& args, const char* exe_to_load) {
   ProtectedDataGuard guard;
 

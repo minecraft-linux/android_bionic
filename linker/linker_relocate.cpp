@@ -46,11 +46,13 @@
 
 static bool is_tls_reloc(ElfW(Word) type) {
   switch (type) {
+#if 0
     case R_GENERIC_TLS_DTPMOD:
     case R_GENERIC_TLS_DTPREL:
     case R_GENERIC_TLS_TPREL:
     case R_GENERIC_TLSDESC:
       return true;
+#endif
     default:
       return false;
   }

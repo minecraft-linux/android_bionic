@@ -29,7 +29,7 @@
 #include "linker_logger.h"
 
 #include <string.h>
-#include <sys/prctl.h>
+// #include <sys/prctl.h>
 #include <unistd.h>
 
 #include <string>
@@ -89,9 +89,9 @@ static void GetAppSpecificProperty(char* buffer) {
 void LinkerLogger::ResetState() {
   // The most likely scenario app is not debuggable and
   // is running on a user build, in which case logging is disabled.
-  if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0) == 0) {
-    return;
-  }
+  // if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0) == 0) {
+  //   return;
+  // }
 
   // This is a convenient place to check whether the greylist should be disabled for testing.
   // static CachedProperty greylist_disabled("debug.ld.greylist_disabled");

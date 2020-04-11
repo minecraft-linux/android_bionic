@@ -30,7 +30,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/prctl.h>
+// #include <sys/prctl.h>
 #include <unistd.h>
 
 static constexpr size_t kAllocateSize = PAGE_SIZE * 100;

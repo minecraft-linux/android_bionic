@@ -40,7 +40,7 @@
 
 // #include <bionic/pthread_internal.h>
 #include "private/bionic_globals.h"
-#include "private/bionic_tls.h"
+// #include "private/bionic_tls.h"
 #include "private/ScopedPthreadMutexLocker.h"
 
 #define __LINKER_PUBLIC__ __attribute__((visibility("default")))

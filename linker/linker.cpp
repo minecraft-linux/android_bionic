@@ -36,7 +36,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/param.h>
-#include <sys/vfs.h>
+// #include <sys/vfs.h>
 #include <unistd.h>
 
 #include <new>
@@ -75,7 +75,7 @@
 #include "android-base/strings.h"
 #include "android-base/stringprintf.h"
 #include "ziparchive/zip_archive.h"
-#include <linux/magic.h>
+//#include <linux/magic.h>
 #define SHT_ANDROID_REL 0x60000001
 #define SHT_ANDROID_RELA 0x60000002
 #define DT_ANDROID_REL 0x6000000f // DT_LOOS + 2
@@ -402,6 +402,15 @@ static bool realpath_fd(int fd, std::string* realpath) {
   // the stack by too much.
   static char buf[PATH_MAX];
 
+#if __APPLE__
+  if (fcntl(fd, F_GETPATH, buf) == -1) {
+    if (!is_first_stage_init()) {
+      PRINT("readlink(\"%s\") failed: %s [fd=%d]", proc_self_fd, strerror(errno), fd);
+    }
+    return false;
+  }
+  auto length = PATH_MAX;
+#else
   async_safe_format_buffer(proc_self_fd, sizeof(proc_self_fd), "/proc/self/fd/%d", fd);
   auto length = readlink(proc_self_fd, buf, sizeof(buf));
   if (length == -1) {
@@ -410,6 +419,7 @@ static bool realpath_fd(int fd, std::string* realpath) {
     }
     return false;
   }
+#endif
 
   realpath->assign(buf, length);
   return true;
@@ -1253,7 +1263,7 @@ static bool load_library(android_namespace_t* ns,
     DL_OPEN_ERR("library \"%s\" wasn't loaded and RTLD_NOLOAD prevented it", name);
     return false;
   }
-
+#ifdef __linux__
   struct statfs fs_stat;
   if (TEMP_FAILURE_RETRY(fstatfs(task->get_fd(), &fs_stat)) != 0) {
     DL_OPEN_ERR("unable to fstatfs file for the library \"%s\": %s", name, strerror(errno));
@@ -1304,7 +1314,9 @@ static bool load_library(android_namespace_t* ns,
       }
       return false;
     }
+//#ifdef __linux__
   }
+#endif
 
   soinfo* si = soinfo_alloc(ns, realpath.c_str(), &file_stat, file_offset, rtld_flags);
   if (si == nullptr) {
@@ -1919,7 +1931,10 @@ static soinfo* find_library(android_namespace_t* ns,
 }
 
 static void soinfo_unload_impl(soinfo* root) {
+#if 0
+// macOS compat
   ScopedTrace trace((std::string("unload ") + root->get_realpath()).c_str());
+#endif
   bool is_linked = root->is_linked();
 
   if (!root->can_unload()) {
@@ -2154,9 +2169,12 @@ static std::string android_dlextinfo_to_string(const android_dlextinfo* info) {
 void* do_dlopen(const char* name, int flags,
                 const android_dlextinfo* extinfo,
                 const void* caller_addr) {
+#if 0
+// macOS compat
   std::string trace_prefix = std::string("dlopen: ") + (name == nullptr ? "(nullptr)" : name);
   ScopedTrace trace(trace_prefix.c_str());
   ScopedTrace loading_trace((trace_prefix + " - loading and linking").c_str());
+#endif
   soinfo* const caller = find_containing_library(caller_addr);
   android_namespace_t* ns = get_caller_namespace(caller);
 
@@ -2250,7 +2268,10 @@ void* do_dlopen(const char* name, int flags,
 
   ProtectedDataGuard guard;
   soinfo* si = find_library(ns, translated_name, flags, extinfo, caller);
+#if 0
+// macOS compat
   loading_trace.End();
+#endif
 
   if (si != nullptr) {
     void* handle = si->to_handle();
@@ -2309,7 +2330,10 @@ bool do_dlsym(void* handle,
               const char* sym_ver,
               const void* caller_addr,
               void** symbol) {
+#if 0
+// macOS compat
   ScopedTrace trace("dlsym");
+#endif
 #if !defined(__LP64__)
   if (handle == nullptr) {
     DL_SYM_ERR("dlsym failed: library handle is null");
@@ -2402,7 +2426,10 @@ bool do_dlsym(void* handle,
 }
 
 int do_dlclose(void* handle) {
+#if 0
+// macOS compat
   ScopedTrace trace("dlclose");
+#endif
   ProtectedDataGuard guard;
   soinfo* si = soinfo_from_handle(handle);
   if (si == nullptr) {
