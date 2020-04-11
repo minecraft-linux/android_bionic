@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <bsd/sys/cdefs.h>
+#include <sys/cdefs.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
