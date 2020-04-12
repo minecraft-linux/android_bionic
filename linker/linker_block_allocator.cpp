@@ -112,11 +112,13 @@ void LinkerBlockAllocator::free(void* block) {
 }
 
 void LinkerBlockAllocator::protect_all(int prot) {
+#if 0
   for (LinkerBlockAllocatorPage* page = page_list_; page != nullptr; page = page->next) {
     if (mprotect(page, kAllocateSize, prot) == -1) {
       abort();
     }
   }
+#endif
 }
 
 void LinkerBlockAllocator::create_new_page() {

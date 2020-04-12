@@ -630,9 +630,9 @@ bool ElfReader::LoadSegments() {
           reinterpret_cast<void*>(file_end), file_size_);
       return false;
     }
-
     if (file_length != 0) {
       int prot = PFLAGS_TO_PROT(phdr->p_flags);
+#if 0
       if ((prot & (PROT_EXEC | PROT_WRITE)) == (PROT_EXEC | PROT_WRITE)) {
         // W + E PT_LOAD segments are not allowed in O.
         if (get_application_target_sdk_version() >= 26) {
@@ -645,10 +645,10 @@ bool ElfReader::LoadSegments() {
                                   name_.c_str());
         add_dlwarning(name_.c_str(), "W+E load segments");
       }
-
+#endif
       void* seg_addr = mmap64(reinterpret_cast<void*>(seg_page_start),
                             file_length,
-                            prot,
+                            prot | PROT_WRITE,
                             MAP_FIXED|MAP_PRIVATE,
                             fd_,
                             file_offset_ + file_page_start);
@@ -674,7 +674,7 @@ bool ElfReader::LoadSegments() {
       size_t zeromap_size = seg_page_end - seg_file_end;
       void* zeromap = mmap(reinterpret_cast<void*>(seg_file_end),
                            zeromap_size,
-                           PFLAGS_TO_PROT(phdr->p_flags),
+                           PFLAGS_TO_PROT(phdr->p_flags) | PROT_WRITE,
                            MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
                            -1,
                            0);
@@ -695,6 +695,7 @@ bool ElfReader::LoadSegments() {
  */
 static int _phdr_table_set_load_prot(const ElfW(Phdr)* phdr_table, size_t phdr_count,
                                      ElfW(Addr) load_bias, int extra_prot_flags) {
+#if 0
   const ElfW(Phdr)* phdr = phdr_table;
   const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
 
@@ -707,9 +708,9 @@ static int _phdr_table_set_load_prot(const ElfW(Phdr)* phdr_table, size_t phdr_c
     ElfW(Addr) seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz) + load_bias;
 
     int prot = PFLAGS_TO_PROT(phdr->p_flags);
-    if ((extra_prot_flags & PROT_WRITE) != 0) {
+    if ((extra_prot_flags & PROT_WRITE) == 0) {
       // make sure we're never simultaneously writable / executable
-      prot &= ~PROT_EXEC;
+      prot |= PROT_EXEC;
     }
 
     int ret = mprotect(reinterpret_cast<void*>(seg_page_start),
@@ -719,6 +720,7 @@ static int _phdr_table_set_load_prot(const ElfW(Phdr)* phdr_table, size_t phdr_c
       return -1;
     }
   }
+#endif
   return 0;
 }
 
@@ -764,6 +766,7 @@ int phdr_table_unprotect_segments(const ElfW(Phdr)* phdr_table,
  */
 static int _phdr_table_set_gnu_relro_prot(const ElfW(Phdr)* phdr_table, size_t phdr_count,
                                           ElfW(Addr) load_bias, int prot_flags) {
+#if 0
   const ElfW(Phdr)* phdr = phdr_table;
   const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
 
@@ -798,6 +801,7 @@ static int _phdr_table_set_gnu_relro_prot(const ElfW(Phdr)* phdr_table, size_t p
       return -1;
     }
   }
+#endif
   return 0;
 }
 

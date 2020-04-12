@@ -17,7 +17,7 @@
 #pragma once
 
 // Get PAGE_SIZE and PAGE_MASK.
-#include <sys/user.h>
+//#include <sys/user.h>
 
 // Returns the address of the page containing address 'x'.
 #define PAGE_START(x) ((x) & PAGE_MASK)
