@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <sys/cdefs.h>
+#include <bsd/sys/cdefs.h>
 #include <stdlib.h>
 #include <limits.h>
 

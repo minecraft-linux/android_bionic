@@ -36,7 +36,9 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/param.h>
-// #include <sys/vfs.h>
+#ifdef __linux__
+#include <sys/vfs.h>
+#endif
 #include <unistd.h>
 
 #include <new>
@@ -75,7 +77,9 @@
 #include "android-base/strings.h"
 #include "android-base/stringprintf.h"
 #include "ziparchive/zip_archive.h"
-//#include <linux/magic.h>
+#ifdef __linux__
+#include <linux/magic.h>
+#endif
 #define SHT_ANDROID_REL 0x60000001
 #define SHT_ANDROID_RELA 0x60000002
 #define DT_ANDROID_REL 0x6000000f // DT_LOOS + 2
