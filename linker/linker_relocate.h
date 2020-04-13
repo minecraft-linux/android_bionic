@@ -39,9 +39,6 @@
 #include "linker_globals.h"
 #include "linker_soinfo.h"
 
-#define	__predict_true(exp)	__builtin_expect((exp) != 0, 1)
-#define	__predict_false(exp)	__builtin_expect((exp) != 0, 0)
-
 static constexpr ElfW(Versym) kVersymHiddenBit = 0x8000;
 
 enum RelocationKind {
