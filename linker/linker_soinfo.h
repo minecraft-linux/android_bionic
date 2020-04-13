@@ -289,7 +289,7 @@ struct soinfo {
   ElfW(Sym)* find_symbol_by_address(const void* addr);
 
   ElfW(Addr) resolve_symbol_address(const ElfW(Sym)* s) const {
-    if (ELF32_ST_TYPE(s->st_info) == STT_GNU_IFUNC) {
+    if (ELF_ST_TYPE(s->st_info) == STT_GNU_IFUNC) {
       return call_ifunc_resolver(s->st_value + load_bias);
     }
     return static_cast<ElfW(Addr)>(s->st_value + load_bias);
@@ -432,7 +432,6 @@ struct soinfo {
 
   friend soinfo* get_libdl_info(const soinfo& linker_si);
 
-#if 0
   // version >= 4
   ElfW(Relr)* relr_;
   size_t relr_count_;
@@ -440,7 +439,6 @@ struct soinfo {
   // version >= 5
   std::unique_ptr<soinfo_tls> tls_;
   std::vector<TlsDynamicResolverArg> tlsdesc_args_;
-#endif
   std::unordered_map<std::string, std::shared_ptr<ElfW(Sym)>> symbols;
 };
 

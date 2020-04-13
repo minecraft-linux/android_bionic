@@ -427,7 +427,7 @@ static bool symbol_matches_soaddr(const ElfW(Sym)* sym, ElfW(Addr) soaddr) {
   // to the start of the solib. The solib only reserves space for the initialized part of the TLS
   // segment. (i.e. .tdata is followed by .tbss, and .tbss overlaps other sections.)
   return sym->st_shndx != SHN_UNDEF &&
-      ELF32_ST_TYPE(sym->st_info) != STT_TLS &&
+      ELF_ST_TYPE(sym->st_info) != STT_TLS &&
       soaddr >= sym->st_value &&
       soaddr < sym->st_value + sym->st_size;
 }

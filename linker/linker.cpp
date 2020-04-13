@@ -2392,8 +2392,8 @@ bool do_dlsym(void* handle,
   }
 
   if (sym != nullptr) {
-    uint32_t bind = ELF32_ST_BIND(sym->st_info);
-    uint32_t type = ELF32_ST_TYPE(sym->st_info);
+    uint32_t bind = ELF_ST_BIND(sym->st_info);
+    uint32_t type = ELF_ST_TYPE(sym->st_info);
 
     if ((bind == STB_GLOBAL || bind == STB_WEAK) && sym->st_shndx != 0) {
       if (type == STT_TLS) {
@@ -2878,7 +2878,6 @@ void soinfo::apply_relr_reloc(ElfW(Addr) offset) {
 // Details of the encoding are described in this post:
 //   https://groups.google.com/d/msg/generic-abi/bX460iggiKg/Pi9aSwwABgAJ
 bool soinfo::relocate_relr() {
-#if 0
   ElfW(Relr)* begin = relr_;
   ElfW(Relr)* end = relr_ + relr_count_;
   constexpr size_t wordsize = sizeof(ElfW(Addr));
@@ -2912,8 +2911,6 @@ bool soinfo::relocate_relr() {
     base += (8*wordsize - 1) * wordsize;
   }
   return true;
-#endif
-  return false;
 }
 
 // An empty list of soinfos

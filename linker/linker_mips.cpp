@@ -192,7 +192,7 @@ bool soinfo::mips_relocate_got(const VersionTracker& version_tracker,
 
     if (s == nullptr) {
       // We only allow an undefined symbol if this is a weak reference.
-      if (ELF32_ST_BIND(local_sym->st_info) != STB_WEAK) {
+      if (ELF_ST_BIND(local_sym->st_info) != STB_WEAK) {
         DL_ERR("%s: cannot locate \"%s\"...", get_realpath(), sym_name);
         return false;
       }
