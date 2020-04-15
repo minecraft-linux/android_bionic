@@ -46,13 +46,11 @@
 
 static bool is_tls_reloc(ElfW(Word) type) {
   switch (type) {
-#if 0
     case R_GENERIC_TLS_DTPMOD:
     case R_GENERIC_TLS_DTPREL:
     case R_GENERIC_TLS_TPREL:
     case R_GENERIC_TLSDESC:
       return true;
-#endif
     default:
       return false;
   }
@@ -423,6 +421,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
       }
       break;
 #endif
+
 #if defined(__aarch64__)
     // Bionic currently only implements TLSDESC for arm64. This implementation should work with
     // other architectures, as long as the resolver functions are implemented.
@@ -611,12 +610,14 @@ bool soinfo::relocate(const SymbolLookupList& lookup_list) {
       return false;
     }
   }
+
   if (relr_ != nullptr) {
     DEBUG("[ relocating %s relr ]", get_realpath());
     if (!relocate_relr()) {
       return false;
     }
   }
+
 #if defined(USE_RELA)
   if (rela_ != nullptr) {
     DEBUG("[ relocating %s rela ]", get_realpath());

@@ -294,7 +294,6 @@ static bool translateSystemPathToApexPath(const char* name, std::string* out_nam
 static std::vector<std::string> g_ld_preload_names;
 
 static void notify_gdb_of_load(soinfo* info) {
-#if 0
   if (info->is_linker() || info->is_main_executable()) {
     // gdb already knows about the linker and the main executable.
     return;
@@ -311,13 +310,10 @@ static void notify_gdb_of_load(soinfo* info) {
   CHECK(map->l_name[0] != '\0');
 
   notify_gdb_of_load(map);
-#endif
 }
 
 static void notify_gdb_of_unload(soinfo* info) {
-#if 0
   notify_gdb_of_unload(&(info->link_map_head));
-#endif
 }
 
 LinkedListEntry<soinfo>* SoinfoListAllocator::alloc() {
