@@ -292,6 +292,7 @@ struct soinfo {
     if (ELF_ST_TYPE(s->st_info) == STT_GNU_IFUNC) {
       return call_ifunc_resolver(s->st_value + load_bias);
     }
+
     return static_cast<ElfW(Addr)>(s->st_value + load_bias);
   }
 
@@ -345,7 +346,7 @@ struct soinfo {
   android_namespace_list_t& get_secondary_namespaces();
 
   soinfo_tls* get_tls() const {
-    return nullptr;
+    return has_min_version(5) ? tls_.get() : nullptr;
   }
 
   void set_mapped_by_caller(bool reserved_map);
