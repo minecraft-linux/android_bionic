@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <sys/cdefs.h>
 #include <sys/mman.h>
-//#include <sys/prctl.h>
+#include <sys/prctl.h>
 #include <stddef.h>
 #include <unistd.h>
 
