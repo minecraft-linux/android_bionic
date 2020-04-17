@@ -470,8 +470,8 @@ int do_dl_iterate_phdr(int (*cb)(dl_phdr_info* info, size_t size, void* data), v
   int rv = 0;
   for (soinfo* si = solist_get_head(); si != nullptr; si = si->next) {
     dl_phdr_info dl_info;
-    dl_info.dlpi_addr = si->link_map_head.l_addr;
-    dl_info.dlpi_name = si->link_map_head.l_name;
+    dl_info.dlpi_addr = si->load_bias;
+    dl_info.dlpi_name = si->get_realpath();
     dl_info.dlpi_phdr = si->phdr;
     dl_info.dlpi_phnum = si->phnum;
     dl_info.dlpi_adds = g_module_load_counter;
@@ -2312,7 +2312,7 @@ int do_dladdr(const void* addr, Dl_info* info) {
   return 1;
 }
 
-static soinfo* soinfo_from_handle(void* handle) {
+soinfo* soinfo_from_handle(void* handle) {
   if ((reinterpret_cast<uintptr_t>(handle) & 1) != 0) {
     auto it = g_soinfo_handles_map.find(reinterpret_cast<uintptr_t>(handle));
     if (it == g_soinfo_handles_map.end()) {
