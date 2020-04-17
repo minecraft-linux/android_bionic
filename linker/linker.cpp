@@ -2312,7 +2312,7 @@ int do_dladdr(const void* addr, Dl_info* info) {
   return 1;
 }
 
-static soinfo* soinfo_from_handle(void* handle) {
+soinfo* soinfo_from_handle(void* handle) {
   if ((reinterpret_cast<uintptr_t>(handle) & 1) != 0) {
     auto it = g_soinfo_handles_map.find(reinterpret_cast<uintptr_t>(handle));
     if (it == g_soinfo_handles_map.end()) {
