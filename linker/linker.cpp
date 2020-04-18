@@ -469,6 +469,7 @@ _Unwind_Ptr do_dl_unwind_find_exidx(_Unwind_Ptr pc, int* pcount) {
 int do_dl_iterate_phdr(int (*cb)(dl_phdr_info* info, size_t size, void* data), void* data) {
   int rv = 0;
   for (soinfo* si = solist_get_head(); si != nullptr; si = si->next) {
+    if(si->base) {
     dl_phdr_info dl_info;
     dl_info.dlpi_addr = si->link_map_head.l_addr;
     dl_info.dlpi_name = si->link_map_head.l_name;
@@ -491,6 +492,7 @@ int do_dl_iterate_phdr(int (*cb)(dl_phdr_info* info, size_t size, void* data), v
     rv = cb(&dl_info, sizeof(dl_phdr_info), data);
     if (rv != 0) {
       break;
+    }
     }
   }
   return rv;
