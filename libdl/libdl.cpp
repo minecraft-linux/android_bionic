@@ -18,6 +18,8 @@
 #include <link.h>
 #include <stdlib.h>
 #include <android/dlext.h>
+#include <unordered_map>
+#include <string>
 
 // These functions are exported by the loader
 // TODO(dimitry): replace these with reference to libc.so
@@ -77,6 +79,10 @@ __attribute__((__weak__))
 void android_get_LD_LIBRARY_PATH(char* buffer, size_t buffer_size) {
   __loader_android_get_LD_LIBRARY_PATH(buffer, buffer_size);
 }
+
+} // extern "C"
+
+namespace linker::libdl {
 
 __attribute__((__weak__))
 void* dlopen(const char* filename, int flag) {
@@ -150,4 +156,24 @@ void __aeabi_unwind_cpp_pr0() {
 }
 #endif
 
-} // extern "C"
+std::unordered_map<std::string, void *> get_dl_symbols() {
+    return {
+        {"dlopen", (void *) dlopen},
+        {"dlerror", (void *) dlerror},
+        {"dlsym", (void *) dlsym},
+        {"dlvsym", (void *) dlvsym},
+        {"dladdr", (void *) dladdr},
+        {"dlclose", (void *) dlclose},
+#if defined(__arm__)
+        {"dl_unwind_find_exidx", (void *) dl_unwind_find_exidx},
+#endif
+        {"dl_iterate_phdr", (void *) dl_iterate_phdr},
+        {"android_dlopen_ext", (void *) android_dlopen_ext},
+        {"android_get_application_target_sdk_version", (void *) android_get_application_target_sdk_version},
+#if defined(__arm__)
+        {"__aeabi_unwind_cpp_pr0", (void *) __aeabi_unwind_cpp_pr0},
+#endif
+    };
+}
+
+}
