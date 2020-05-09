@@ -80,17 +80,6 @@
 #ifdef __linux__
 #include <linux/magic.h>
 #endif
-#define SHT_ANDROID_REL 0x60000001
-#define SHT_ANDROID_RELA 0x60000002
-#define DT_ANDROID_REL 0x6000000f // DT_LOOS + 2
-#define DT_ANDROID_RELSZ 0x60000010 // DT_LOOS + 3
-#define DT_ANDROID_RELA 0x60000011 // DT_LOOS + 4
-#define DT_ANDROID_RELASZ 0x60000012 // DT_LOOS + 5
-#define SHT_ANDROID_RELR 0x6fffff00
-#define DT_ANDROID_RELR 0x6fffe000
-#define DT_ANDROID_RELRSZ 0x6fffe001
-#define DT_ANDROID_RELRENT 0x6fffe003
-#define DT_ANDROID_RELRCOUNT 0x6fffe005
 
 static std::unordered_map<void*, size_t> g_dso_handle_counters;
 
@@ -2841,7 +2830,8 @@ soinfo * soinfo::load_empty_library(const char *name)
 
   si->base = 0;
   si->size = 0;
-  si->flags_ = FLAG_LINKED;
+  si->flags_ = FLAG_LINKED | FLAG_NEW_SOINFO;
+  si->version_ = 3;
   // si->entry = 0;
   si->dynamic = (decltype(si->dynamic))-1;
   si->constructors_called = 1;
@@ -2860,8 +2850,11 @@ soinfo *soinfo::load_library(const char *name, const std::unordered_map<std::str
   if(symbols.size()) {
     // lib->symbols.reserve(symbols.size());
     for (auto&& s : symbols) {
-      // Elf64_Sym
-      (lib->symbols[s.first] = std::make_shared<ElfW(Sym)>())->st_value = (ElfW(Addr))s.second;
+      if(s.second) {
+        (lib->symbols[s.first] = std::make_shared<ElfW(Sym)>())->st_value = (ElfW(Addr))s.second;
+      } else {
+        async_safe_format_log(2, "load_library", "Undefined symbol %s", s.first.c_str());
+      }
     }
   }
   return lib;
