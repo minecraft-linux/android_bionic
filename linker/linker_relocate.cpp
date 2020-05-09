@@ -428,6 +428,9 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
     case R_GENERIC_TLSDESC:
       count_relocation_if<IsGeneral>(kRelocRelative);
       {
+        abort();
+// Not implemented yet aarch64
+#if 0
         ElfW(Addr) addend = reloc.r_addend;
         TlsDescriptor* desc = static_cast<TlsDescriptor*>(rel_target);
         if (found_in == nullptr) {
@@ -464,6 +467,7 @@ static bool process_relocation_impl(Relocator& relocator, const rel_t& reloc) {
                         desc_arg.index.offset, sym_name);
           }
         }
+#endif
       }
       break;
 #endif  // defined(__aarch64__)
@@ -655,7 +659,7 @@ bool soinfo::relocate(const SymbolLookupList& lookup_list) {
 
   // Once the tlsdesc_args_ vector's size is finalized, we can write the addresses of its elements
   // into the TLSDESC relocations.
-#if defined(__aarch64__)
+#if 0 && defined(__aarch64__)
   // Bionic currently only implements TLSDESC for arm64.
   for (const std::pair<TlsDescriptor*, size_t>& pair : relocator.deferred_tlsdesc_relocs) {
     TlsDescriptor* desc = pair.first;

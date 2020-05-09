@@ -60,6 +60,9 @@ struct TlsDynamicResolverArg {
   TlsIndex index;
 };
 
+// Not implemented yet aarch64
+#if 0
 __LIBC_HIDDEN__ extern "C" size_t tlsdesc_resolver_static(size_t);
 __LIBC_HIDDEN__ extern "C" size_t tlsdesc_resolver_dynamic(size_t);
 __LIBC_HIDDEN__ extern "C" size_t tlsdesc_resolver_unresolved_weak(size_t);
+#endif
