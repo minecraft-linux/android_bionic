@@ -2265,6 +2265,18 @@ void* do_dlopen(const char* name, int flags,
 #endif
 
   if (si != nullptr) {
+    auto s = si;
+    for (auto i = 0; i < s->phnum; i++) {
+      if (s->phdr[i].p_type == PT_LOAD) {
+        auto base = s->base + s->phdr[i].p_vaddr;
+        auto end = base + s->phdr[i].p_memsz;
+        const char src[] = "\0/data/data/";
+        auto res = (char*)base - 1;
+        while ((unsigned long long)(res + 1) < end && (res = std::search(res + 1, (char*)end, std::begin(src), std::end(src))) != (char*)end) {
+          memcpy(res + 1, "../../.././", sizeof(src) - 2);
+        }
+      }
+    }
     void* handle = si->to_handle();
     LD_LOG(kLogDlopen,
            "... dlopen calling constructors: realpath=\"%s\", soname=\"%s\", handle=%p",
