@@ -181,7 +181,7 @@ struct soinfo {
 #endif
 
   soinfo* next;
- private:
+ //private:
   uint32_t flags_;
 
   const char* strtab_;
@@ -440,6 +440,8 @@ struct soinfo {
   // version >= 5
   std::unique_ptr<soinfo_tls> tls_;
   std::vector<TlsDynamicResolverArg> tlsdesc_args_;
+
+public:
   std::unordered_map<std::string, std::shared_ptr<ElfW(Sym)>> symbols;
 };
 
