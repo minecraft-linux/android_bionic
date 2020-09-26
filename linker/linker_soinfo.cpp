@@ -148,6 +148,19 @@ soinfo_do_lookup_impl(const char* name, const version_info* vi,
                    name, lib->si_->get_realpath(), reinterpret_cast<void*>(lib->si_->base));
       }
 
+      if (lib->si_->symbols.size()) {
+        // Custom overrides
+        auto sym = lib->si_->symbols.find(name);
+        if(sym != lib->si_->symbols.end()) {
+          // if(!strcmp("mcpelauncher_vlog", name)) {
+          //   // throw 0;
+          //   int i = 0;
+          // }
+          *si_found_in = lib->si_;
+          return sym->second.get();
+        }
+      }
+
       const uint32_t word_num = (hash / kBloomMaskBits) & lib->gnu_maskwords_;
       const ElfW(Addr) bloom_word = lib->gnu_bloom_filter_[word_num];
       const uint32_t h1 = hash % kBloomMaskBits;
@@ -215,6 +228,7 @@ soinfo::soinfo(android_namespace_t* ns, const char* realpath,
                const struct stat* file_stat, off64_t file_offset,
                int rtld_flags) {
   memset(this, 0, sizeof(*this));
+  new (&symbols) std::unordered_map<std::string, std::shared_ptr<ElfW(Sym)>>();
 
   if (realpath != nullptr) {
     realpath_ = realpath;
@@ -324,13 +338,17 @@ SymbolLookupLib soinfo::get_lookup_lib() {
 
 const ElfW(Sym)* soinfo::find_symbol_by_name(SymbolName& symbol_name,
                                              const version_info* vi) const {
-  if(this->bucket_) {
-    return is_gnu_hash() ? gnu_lookup(symbol_name, vi) : elf_lookup(symbol_name, vi);
-  }
-  else if (this->symbols.size()) {
+  if (this->symbols.size()) {
     // Custom Library
     auto sym = this->symbols.find(symbol_name.get_name());
-    return sym != this->symbols.end() ? sym->second.get() : (ElfW(Sym)*)nullptr;
+    if(sym != this->symbols.end()) {
+      auto n = symbol_name.get_name();
+
+      return sym->second.get();
+    }
+  }
+  if(this->bucket_) {
+    return is_gnu_hash() ? gnu_lookup(symbol_name, vi) : elf_lookup(symbol_name, vi);
   }
   return (ElfW(Sym)*)nullptr;
 }

@@ -136,6 +136,7 @@ enum {
    */
   ANDROID_DLEXT_RESERVED_ADDRESS_RECURSIVE = 0x400,
 
+  ANDROID_DLEXT_MCPELAUNCHER_HOOKS = 0x800000,
 
   /** Mask of valid bits. */
   ANDROID_DLEXT_VALID_FLAG_BITS       = ANDROID_DLEXT_RESERVED_ADDRESS |
@@ -146,10 +147,15 @@ enum {
                                         ANDROID_DLEXT_USE_LIBRARY_FD_OFFSET |
                                         ANDROID_DLEXT_FORCE_LOAD |
                                         ANDROID_DLEXT_USE_NAMESPACE |
-                                        ANDROID_DLEXT_RESERVED_ADDRESS_RECURSIVE,
+                                        ANDROID_DLEXT_RESERVED_ADDRESS_RECURSIVE |
+                                        ANDROID_DLEXT_MCPELAUNCHER_HOOKS,
 };
 
 struct android_namespace_t;
+struct mcpelauncher_hook_t {
+  const char* name;
+  void* value;
+};
 
 /** Used to pass Android-specific arguments to `android_dlopen_ext`. */
 typedef struct {
@@ -171,6 +177,9 @@ typedef struct {
 
   /** Used by `ANDROID_DLEXT_USE_NAMESPACE`. */
   struct android_namespace_t* library_namespace;
+
+  /** Used by mcpelauncher, terminated by a nullptr name */
+  struct mcpelauncher_hook_t* mcpelauncher_hooks;
 } android_dlextinfo;
 
 /**
