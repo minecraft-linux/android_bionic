@@ -95,25 +95,34 @@ _Unwind_Ptr __loader_dl_unwind_find_exidx(_Unwind_Ptr pc, int* pcount) __LINKER_
 }
 
 static pthread_mutex_t g_dl_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+#define __BIONIC_DLERROR_BUFFER_SIZE 512
+struct android_pthread_internal {
+  char * current_dlerror;
+  char dlerror_buffer[__BIONIC_DLERROR_BUFFER_SIZE];
+};
+static thread_local android_pthread_internal ___android_pthread_internal;
+static android_pthread_internal* __get_thread() {
+  return &___android_pthread_internal;
+}
 
 static char* __bionic_set_dlerror(char* new_value) {
-  // char* old_value = __get_thread()->current_dlerror;
-  // __get_thread()->current_dlerror = new_value;
+  char* old_value = __get_thread()->current_dlerror;
+  __get_thread()->current_dlerror = new_value;
 
-  // if (new_value != nullptr) LD_LOG(kLogErrors, "dlerror set to \"%s\"", new_value);
-  // return old_value;
+  if (new_value != nullptr) LD_LOG(kLogErrors, "dlerror set to \"%s\"", new_value);
+  return old_value;
   return 0;
 }
 
 static void __bionic_format_dlerror(const char* msg, const char* detail) {
-  // char* buffer = __get_thread()->dlerror_buffer;
-  // strlcpy(buffer, msg, __BIONIC_DLERROR_BUFFER_SIZE);
-  // if (detail != nullptr) {
-  //   strlcat(buffer, ": ", __BIONIC_DLERROR_BUFFER_SIZE);
-  //   strlcat(buffer, detail, __BIONIC_DLERROR_BUFFER_SIZE);
-  // }
+  char* buffer = __get_thread()->dlerror_buffer;
+  strlcpy(buffer, msg, __BIONIC_DLERROR_BUFFER_SIZE);
+  if (detail != nullptr) {
+    strlcat(buffer, ": ", __BIONIC_DLERROR_BUFFER_SIZE);
+    strlcat(buffer, detail, __BIONIC_DLERROR_BUFFER_SIZE);
+  }
 
-  // __bionic_set_dlerror(buffer);
+  __bionic_set_dlerror(buffer);
 }
 
 char* __loader_dlerror() {
