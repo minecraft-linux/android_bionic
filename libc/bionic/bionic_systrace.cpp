@@ -30,18 +30,23 @@
 #define WRITE_OFFSET   32
 
 static Lock g_lock;
-// static CachedProperty g_debug_atrace_tags_enableflags("debug.atrace.tags.enableflags");
-// static uint64_t g_tags;
+#if 0
+static CachedProperty g_debug_atrace_tags_enableflags("debug.atrace.tags.enableflags");
+static uint64_t g_tags;
+#endif
 static int g_trace_marker_fd = -1;
 
 static bool should_trace() {
-  // g_lock.lock();
-  // if (g_debug_atrace_tags_enableflags.DidChange()) {
-  //   g_tags = strtoull(g_debug_atrace_tags_enableflags.Get(), nullptr, 0);
-  // }
-  // g_lock.unlock();
-  // return ((g_tags & ATRACE_TAG_BIONIC) != 0);
-  return true;
+#if 0
+  g_lock.lock();
+  if (g_debug_atrace_tags_enableflags.DidChange()) {
+    g_tags = strtoull(g_debug_atrace_tags_enableflags.Get(), nullptr, 0);
+  }
+  g_lock.unlock();
+  return ((g_tags & ATRACE_TAG_BIONIC) != 0);
+#else
+  return false;
+#endif
 }
 
 static int get_trace_marker_fd() {
