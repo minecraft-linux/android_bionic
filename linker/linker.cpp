@@ -2273,35 +2273,6 @@ void* do_dlopen(const char* name, int flags,
 #endif
 
   if (si != nullptr) {
-    auto s = si;
-    // for (auto i = 0; i < s->phnum; i++) {
-    //   if (s->phdr[i].p_type == PT_LOAD && !(s->phdr[i].p_flags & PF_X)) {
-    //     auto base = s->base + s->phdr[i].p_vaddr;
-    //     auto end = base + s->phdr[i].p_memsz;
-    //     const char src[] = "\0/data/data/";
-    //     auto res = (char*)base - 1;
-    //     while ((unsigned long long)(res + 1) < end && (res = std::search(res + 1, (char*)end, std::begin(src), std::end(src))) != (char*)end) {
-    //       memcpy(res + 1, "../../.././", sizeof(src) - 2);
-    //     }
-    //     // {
-    //     //   const char src[] = "1.";
-    //     //   auto res = (char*)base - 1;
-    //     //   while ((unsigned long long)(res + 1) < end && (res = std::search(res + 1, (char*)end, std::begin(src), std::end(src) - 1)) != (char*)end) {
-    //     //     auto v = res;
-    //     //     auto vlen = strlen(v);
-    //     //     std::string s(v, v + vlen);
-    //     //     auto cnt = 0;
-    //     //     for(size_t i = s.find('.'); i != -1; i = s.find('.', i + 1)) {
-    //     //       cnt++;
-    //     //     }
-    //     //     if(cnt>=3 && cnt <= 4) {
-    //     //       auto y = 0;
-    //     //     }
-    //     //     //memcpy(res + 1, "../../.././", sizeof(src) - 2);
-    //     //   }
-    //     // }
-    //   }
-    // }
     void* handle = si->to_handle();
     LD_LOG(kLogDlopen,
            "... dlopen calling constructors: realpath=\"%s\", soname=\"%s\", handle=%p",
