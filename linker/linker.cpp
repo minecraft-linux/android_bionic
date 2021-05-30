@@ -663,7 +663,11 @@ class LoadTask {
     auto extinfo = this->get_extinfo();
     if(extinfo && extinfo->flags & ANDROID_DLEXT_MCPELAUNCHER_HOOKS) {
       for(auto hook = extinfo->mcpelauncher_hooks; hook->name; hook++) {
-        (si_->symbols[hook->name] = std::make_shared<ElfW(Sym)>())->st_value = (ElfW(Addr))hook->value - si_->load_bias;
+        auto entry = std::make_shared<soinfo::HookEntry>();
+        entry->symbol.st_value = (ElfW(Addr))hook->value - si_->load_bias;
+        hook->value = nullptr;
+        entry->orig = &hook->value;
+        si_->symbols[hook->name] = std::move(entry);
       }
     }
 
@@ -2858,7 +2862,9 @@ soinfo *soinfo::load_library(const char *name, const std::unordered_map<std::str
     // lib->symbols.reserve(symbols.size());
     for (auto&& s : symbols) {
       if(s.second) {
-        (lib->symbols[s.first] = std::make_shared<ElfW(Sym)>())->st_value = (ElfW(Addr))s.second;
+        auto entry = std::make_shared<soinfo::HookEntry>();
+        entry->symbol.st_value = (ElfW(Addr))s.second;
+        lib->symbols[s.first] = std::move(entry);
       } else {
         async_safe_format_log(2, "load_library", "Undefined symbol %s", s.first.c_str());
       }

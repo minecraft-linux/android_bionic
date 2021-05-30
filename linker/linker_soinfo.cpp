@@ -124,6 +124,8 @@ soinfo_do_lookup_impl(const char* name, const version_info* vi,
 
   const SymbolLookupLib* end = lookup_list.end();
   const SymbolLookupLib* it = lookup_list.begin();
+  void** orig = nullptr;
+  ElfW(Sym)* ret = nullptr;
 
   while (true) {
     const SymbolLookupLib* lib;
@@ -149,15 +151,10 @@ soinfo_do_lookup_impl(const char* name, const version_info* vi,
       }
 
       if (lib->si_->symbols.size()) {
-        // Custom overrides
         auto sym = lib->si_->symbols.find(name);
         if(sym != lib->si_->symbols.end()) {
-          // if(!strcmp("mcpelauncher_vlog", name)) {
-          //   // throw 0;
-          //   int i = 0;
-          // }
-          *si_found_in = lib->si_;
-          return sym->second.get();
+          orig = sym->second->orig;
+          ret = &sym->second->symbol;
         }
       }
 
@@ -204,7 +201,14 @@ soinfo_do_lookup_impl(const char* name, const version_info* vi,
                        name, lib->si_->get_realpath(), reinterpret_cast<void*>(sym->st_value),
                        static_cast<size_t>(sym->st_size));
           }
-          return sym;
+          if(!ret) {
+            return sym;
+          } else {
+            if(orig != nullptr) {
+              *orig = (void*)(sym->st_value + lib->si_->load_bias);
+            }
+            return ret;
+          }
         }
       }
       ++sym_idx;
@@ -338,19 +342,29 @@ SymbolLookupLib soinfo::get_lookup_lib() {
 
 const ElfW(Sym)* soinfo::find_symbol_by_name(SymbolName& symbol_name,
                                              const version_info* vi) const {
+  void** orig = nullptr;
+  ElfW(Sym)* ret = nullptr;
   if (this->symbols.size()) {
     // Custom Library
     auto sym = this->symbols.find(symbol_name.get_name());
     if(sym != this->symbols.end()) {
       auto n = symbol_name.get_name();
-
-      return sym->second.get();
+      orig = sym->second->orig;
+      ret = &sym->second->symbol;
     }
   }
   if(this->bucket_) {
-    return is_gnu_hash() ? gnu_lookup(symbol_name, vi) : elf_lookup(symbol_name, vi);
+    auto&& ret2 = is_gnu_hash() ? gnu_lookup(symbol_name, vi) : elf_lookup(symbol_name, vi);
+    if(!ret) {
+      return ret2;
+    } else {
+      if(orig != nullptr) {
+        *orig = (void*)(ret2->st_value + load_bias);
+      }
+      return ret;
+    }
   }
-  return (ElfW(Sym)*)nullptr;
+  return ret;
 }
 
 const ElfW(Sym)* soinfo::gnu_lookup(SymbolName& symbol_name, const version_info* vi) const {
