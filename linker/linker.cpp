@@ -2282,6 +2282,11 @@ void* do_dlopen(const char* name, int flags,
            "... dlopen calling constructors: realpath=\"%s\", soname=\"%s\", handle=%p",
            si->get_realpath(), si->get_soname(), handle);
     si->call_constructors();
+    if(extinfo && extinfo->flags & ANDROID_DLEXT_MCPELAUNCHER_HOOKS) {
+      for(auto&& sym : si->symbols) {
+        sym.second->orig = nullptr;
+      }
+    }
     failure_guard.Disable();
     LD_LOG(kLogDlopen,
            "... dlopen successful: realpath=\"%s\", soname=\"%s\", handle=%p",
