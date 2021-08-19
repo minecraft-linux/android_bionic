@@ -665,6 +665,8 @@ class LoadTask {
       for(auto hook = extinfo->mcpelauncher_hooks; hook->name; hook++) {
         auto entry = std::make_shared<soinfo::HookEntry>();
         entry->symbol.st_value = (ElfW(Addr))hook->value - si_->load_bias;
+        entry->symbol.st_info = STB_GLOBAL << 4;
+        entry->symbol.st_shndx = 1;
         hook->value = nullptr;
         entry->orig = &hook->value;
         si_->symbols[hook->name] = std::move(entry);
@@ -2869,6 +2871,8 @@ soinfo *soinfo::load_library(const char *name, const std::unordered_map<std::str
       if(s.second) {
         auto entry = std::make_shared<soinfo::HookEntry>();
         entry->symbol.st_value = (ElfW(Addr))s.second;
+        entry->symbol.st_info = STB_GLOBAL << 4;
+        entry->symbol.st_shndx = 1;
         lib->symbols[s.first] = std::move(entry);
       } else {
         async_safe_format_log(2, "load_library", "Undefined symbol %s", s.first.c_str());
