@@ -2286,6 +2286,11 @@ void* do_dlopen(const char* name, int flags,
     si->call_constructors();
     if(extinfo && extinfo->flags & ANDROID_DLEXT_MCPELAUNCHER_HOOKS) {
       for(auto&& sym : si->symbols) {
+        // Check if this symbol isn't relocated do a fake lookup to enshure orig is set
+        if(sym.second->orig != nullptr && *sym.second->orig == 0) {
+          void* val;
+          do_dlsym(handle, sym.first.data(), nullptr, nullptr, &val);
+        }
         sym.second->orig = nullptr;
       }
     }

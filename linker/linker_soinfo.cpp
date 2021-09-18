@@ -134,7 +134,13 @@ soinfo_do_lookup_impl(const char* name, const version_info* vi,
     // Iterate over libraries until we find one whose Bloom filter matches the symbol we're
     // searching for.
     while (true) {
-      if (it == end) return nullptr;
+      if (it == end) {
+        if(ret) {
+          *si_found_in = lib->si_;
+          return ret;
+        }
+        return nullptr;
+      }
       lib = it++;
 
       if (IsGeneral && lib->needs_sysv_lookup()) {
@@ -205,7 +211,7 @@ soinfo_do_lookup_impl(const char* name, const version_info* vi,
             return sym;
           } else {
             if(orig != nullptr) {
-              *orig = (void*)(sym->st_value + lib->si_->load_bias);
+              *orig = sym ? (void*)(sym->st_value + lib->si_->load_bias) : nullptr;
             }
             return ret;
           }
@@ -213,7 +219,9 @@ soinfo_do_lookup_impl(const char* name, const version_info* vi,
       }
       ++sym_idx;
     } while ((chain_value & 1) == 0);
-
+    if(ret) {
+      return ret;
+    }
     if (IsGeneral) {
       TRACE_TYPE(LOOKUP, "NOT FOUND %s in %s@%p",
                  name, lib->si_->get_realpath(), reinterpret_cast<void*>(lib->si_->base));
@@ -359,7 +367,7 @@ const ElfW(Sym)* soinfo::find_symbol_by_name(SymbolName& symbol_name,
       return ret2;
     } else {
       if(orig != nullptr) {
-        *orig = (void*)(ret2->st_value + load_bias);
+        *orig = ret2 ? (void*)(ret2->st_value + load_bias) : nullptr;
       }
       return ret;
     }
