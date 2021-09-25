@@ -91,7 +91,7 @@ struct SymbolLookupLib {
 
   soinfo* si_ = nullptr;
 
-  bool needs_sysv_lookup() const { return si_ != nullptr && gnu_bloom_filter_ == nullptr; }
+  bool needs_sysv_lookup() const;
 };
 
 // A list of libraries to search for a symbol.
@@ -442,7 +442,11 @@ struct soinfo {
   std::vector<TlsDynamicResolverArg> tlsdesc_args_;
 
 public:
-  std::unordered_map<std::string, std::shared_ptr<ElfW(Sym)>> symbols;
+  struct HookEntry {
+    ElfW(Sym) symbol;
+    void** orig;
+  };
+  std::unordered_map<std::string, std::shared_ptr<HookEntry>> symbols;
 };
 
 // This function is used by dlvsym() to calculate hash of sym_ver

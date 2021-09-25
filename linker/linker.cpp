@@ -663,7 +663,13 @@ class LoadTask {
     auto extinfo = this->get_extinfo();
     if(extinfo && extinfo->flags & ANDROID_DLEXT_MCPELAUNCHER_HOOKS) {
       for(auto hook = extinfo->mcpelauncher_hooks; hook->name; hook++) {
-        (si_->symbols[hook->name] = std::make_shared<ElfW(Sym)>())->st_value = (ElfW(Addr))hook->value - si_->load_bias;
+        auto entry = std::make_shared<soinfo::HookEntry>();
+        entry->symbol.st_value = (ElfW(Addr))hook->value - si_->load_bias;
+        entry->symbol.st_info = STB_GLOBAL << 4;
+        entry->symbol.st_shndx = 1;
+        hook->value = nullptr;
+        entry->orig = &hook->value;
+        si_->symbols[hook->name] = std::move(entry);
       }
     }
 
@@ -2278,6 +2284,16 @@ void* do_dlopen(const char* name, int flags,
            "... dlopen calling constructors: realpath=\"%s\", soname=\"%s\", handle=%p",
            si->get_realpath(), si->get_soname(), handle);
     si->call_constructors();
+    if(extinfo && extinfo->flags & ANDROID_DLEXT_MCPELAUNCHER_HOOKS) {
+      for(auto&& sym : si->symbols) {
+        // Check if this symbol isn't relocated do a fake lookup to enshure orig is set
+        if(sym.second->orig != nullptr && *sym.second->orig == 0) {
+          void* val;
+          do_dlsym(handle, sym.first.data(), nullptr, nullptr, &val);
+        }
+        sym.second->orig = nullptr;
+      }
+    }
     failure_guard.Disable();
     LD_LOG(kLogDlopen,
            "... dlopen successful: realpath=\"%s\", soname=\"%s\", handle=%p",
@@ -2858,7 +2874,11 @@ soinfo *soinfo::load_library(const char *name, const std::unordered_map<std::str
     // lib->symbols.reserve(symbols.size());
     for (auto&& s : symbols) {
       if(s.second) {
-        (lib->symbols[s.first] = std::make_shared<ElfW(Sym)>())->st_value = (ElfW(Addr))s.second;
+        auto entry = std::make_shared<soinfo::HookEntry>();
+        entry->symbol.st_value = (ElfW(Addr))s.second;
+        entry->symbol.st_info = STB_GLOBAL << 4;
+        entry->symbol.st_shndx = 1;
+        lib->symbols[s.first] = std::move(entry);
       } else {
         async_safe_format_log(2, "load_library", "Undefined symbol %s", s.first.c_str());
       }
