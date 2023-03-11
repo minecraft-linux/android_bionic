@@ -734,7 +734,7 @@ static int _phdr_table_set_load_prot(const ElfW(Phdr)* phdr_table, size_t phdr_c
     if ((extra_prot_flags & PROT_WRITE) == 0) {
       // make sure we're never simultaneously writable / executable
       prot |= PROT_EXEC;
-      sys_icache_invalidate(seg_page_start, seg_page_end - seg_page_start);
+      sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
     }
   }
 #endif
