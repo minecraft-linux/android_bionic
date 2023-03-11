@@ -42,6 +42,10 @@
 #include "linker_debug.h"
 #include "linker_utils.h"
 
+#if defined(__APPLE__) && defined(__aarch64__)
+#include <libkern/OSCacheControl.h>
+#endif
+
 #include "private/CFIShadow.h" // For kLibraryAlignment
 
 static int GetTargetElfMachine() {
@@ -594,6 +598,9 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
 }
 
 bool ElfReader::LoadSegments() {
+#if defined(__APPLE__) && defined(__aarch64__)
+  pthread_jit_write_protect_np(0);
+#endif
   for (size_t i = 0; i < phdr_num_; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table_[i];
 
@@ -632,6 +639,14 @@ bool ElfReader::LoadSegments() {
     }
     if (file_length != 0) {
       int prot = PFLAGS_TO_PROT(phdr->p_flags);
+#if defined(__APPLE__) && defined(__aarch64__)
+      if ((prot & (PROT_EXEC | PROT_WRITE)) == (PROT_EXEC | PROT_WRITE)) {
+        DL_ERR_AND_LOG("\"%s\": W+E load segments are not allowed", name_.c_str());
+      }
+      if(prot & PROT_EXEC) {
+        prot |= MAP_JIT;
+      }
+#endif
 #if 0
       if ((prot & (PROT_EXEC | PROT_WRITE)) == (PROT_EXEC | PROT_WRITE)) {
         // W + E PT_LOAD segments are not allowed in O.
@@ -671,10 +686,16 @@ bool ElfReader::LoadSegments() {
     // between them. This is done by using a private anonymous
     // map for all extra pages.
     if (seg_page_end > seg_file_end) {
+      int prot = PFLAGS_TO_PROT(phdr->p_flags);
+#if defined(__APPLE__) && defined(__aarch64__)
+      if(prot & PROT_EXEC) {
+        prot |= MAP_JIT;
+      }
+#endif
       size_t zeromap_size = seg_page_end - seg_file_end;
       void* zeromap = mmap(reinterpret_cast<void*>(seg_file_end),
                            zeromap_size,
-                           PFLAGS_TO_PROT(phdr->p_flags) | PROT_WRITE,
+                           prot | PROT_WRITE,
                            MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
                            -1,
                            0);
@@ -695,6 +716,10 @@ bool ElfReader::LoadSegments() {
  */
 static int _phdr_table_set_load_prot(const ElfW(Phdr)* phdr_table, size_t phdr_count,
                                      ElfW(Addr) load_bias, int extra_prot_flags) {
+#if defined(__APPLE__) && defined(__aarch64__)
+  pthread_jit_write_protect_np((extra_prot_flags & PROT_WRITE) ? 0 : 1);
+  sys_icache_invalidate(addr, size);
+#endif
 #if 0
   const ElfW(Phdr)* phdr = phdr_table;
   const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
