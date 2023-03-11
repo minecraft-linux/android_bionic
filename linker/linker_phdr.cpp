@@ -718,7 +718,25 @@ static int _phdr_table_set_load_prot(const ElfW(Phdr)* phdr_table, size_t phdr_c
                                      ElfW(Addr) load_bias, int extra_prot_flags) {
 #if defined(__APPLE__) && defined(__aarch64__)
   pthread_jit_write_protect_np((extra_prot_flags & PROT_WRITE) ? 0 : 1);
-  sys_icache_invalidate(addr, size);
+  //sys_icache_invalidate(addr, size);
+  const ElfW(Phdr)* phdr = phdr_table;
+  const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
+
+  for (; phdr < phdr_limit; phdr++) {
+    if (phdr->p_type != PT_LOAD || (phdr->p_flags & PF_W) != 0) {
+      continue;
+    }
+
+    ElfW(Addr) seg_page_start = PAGE_START(phdr->p_vaddr) + load_bias;
+    ElfW(Addr) seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz) + load_bias;
+
+    int prot = PFLAGS_TO_PROT(phdr->p_flags);
+    if ((extra_prot_flags & PROT_WRITE) == 0) {
+      // make sure we're never simultaneously writable / executable
+      prot |= PROT_EXEC;
+      sys_icache_invalidate(seg_page_start, seg_page_end - seg_page_start);
+    }
+  }
 #endif
 #if 0
   const ElfW(Phdr)* phdr = phdr_table;
