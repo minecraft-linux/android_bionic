@@ -625,7 +625,7 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
   }
 
   load_start_ = start;
-  load_bias_ = reinterpret_cast<ElfW(Addr)>(start);
+  load_bias_ = reinterpret_cast<uint8_t*>(start) - addr;
   return true;
 }
 
@@ -681,7 +681,7 @@ bool ElfReader::LoadSegments() {
                             -1,
                             0);
         if (seg_addr == MAP_FAILED) {
-          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%d, seg_size=%d", name_.c_str(), i, strerror(errno), (int)(intptr_t)seg_addr, (int)(intptr_t)seg_size);
+          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)seg_addr, (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
           return false;
         }
       }
@@ -689,12 +689,12 @@ bool ElfReader::LoadSegments() {
       if (file_length != 0) {
         auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
         if(seekoffset != (file_offset_ + file_page_start)) {
-          DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%d, seekoffset=%d", name_.c_str(), i, strerror(errno), (int)(file_offset_ + file_page_start), (int)seekoffset);
+          DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%lld, seekoffset=%lld", name_.c_str(), i, strerror(errno), (long long)(file_offset_ + file_page_start), (long long)seekoffset);
           return false;
         }
         auto readsize = read(fd_, seg_addr, file_length);
         if(readsize != file_length) {
-          DL_ERR("couldn't read \"%s\" segment %zd: %s, file_length=%d, readsize=%d", name_.c_str(), i, strerror(errno), (int)file_length, (int)readsize);
+          DL_ERR("couldn't read \"%s\" segment %zd: %s, file_length=%lld, readsize=%lld", name_.c_str(), i, strerror(errno), (long long)file_length, (long long)readsize);
           return false;
         }
       }
