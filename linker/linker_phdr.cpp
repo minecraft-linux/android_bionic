@@ -555,8 +555,8 @@ static void* ReserveAligned(size_t size, size_t align) {
   // created. Don't randomize then.
   size_t n = 0;//is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
   uint8_t* start = first + n * PAGE_SIZE;
-  munmap(mmap_ptr, start - mmap_ptr);
-  munmap(start + size, mmap_ptr + mmap_size - (start + size));
+  //munmap(mmap_ptr, start - mmap_ptr);
+  //munmap(start + size, mmap_ptr + mmap_size - (start + size));
   return start;
 #else
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -672,16 +672,16 @@ bool ElfReader::LoadSegments() {
     int prot = PFLAGS_TO_PROT(phdr->p_flags);
 #if defined(__APPLE__) && defined(__aarch64__)
       void* seg_addr = reinterpret_cast<void*>(seg_page_start);
-      if(!(prot & PROT_EXEC)) {
+      if(prot & PROT_WRITE) {
         size_t seg_size = seg_page_end - seg_page_start;
         void* seg_addr = mmap(seg_addr,
                             seg_size,
-                            prot | PROT_WRITE,
+                            PROT_READ | PROT_WRITE,
                             MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
                             -1,
                             0);
         if (seg_addr == MAP_FAILED) {
-          DL_ERR("couldn't map \"%s\" segment %zd: %s", name_.c_str(), i, strerror(errno));
+          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%d, seg_size=%d", name_.c_str(), i, strerror(errno), (int)(intptr_t)seg_addr, (int)(intptr_t)seg_size);
           return false;
         }
       }
