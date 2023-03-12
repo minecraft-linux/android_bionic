@@ -672,6 +672,7 @@ bool ElfReader::LoadSegments() {
     int prot = PFLAGS_TO_PROT(phdr->p_flags);
 #if defined(__APPLE__) && defined(__aarch64__)
       void* seg_addr = reinterpret_cast<void*>(seg_page_start);
+#if 0
       if(prot & PROT_WRITE) {
         size_t seg_size = seg_page_end - seg_page_start;
         void* seg_addr = mmap(seg_addr,
@@ -685,6 +686,7 @@ bool ElfReader::LoadSegments() {
           return false;
         }
       }
+#endif
 
       if (file_length != 0) {
         auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
