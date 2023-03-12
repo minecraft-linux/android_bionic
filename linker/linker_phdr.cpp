@@ -681,7 +681,7 @@ bool ElfReader::LoadSegments() {
                             -1,
                             0);
         if (seg_addr == MAP_FAILED) {
-          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)seg_addr, (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
+          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
           return false;
         }
       }
