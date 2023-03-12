@@ -643,7 +643,7 @@ bool ElfReader::LoadSegments() {
         prot |= MAP_JIT;
       }
       size_t seg_size = seg_page_end - seg_page_start;
-      void* seg_addr = mmap(reinterpret_cast<void*>(seg_file_end),
+      void* seg_addr = mmap(reinterpret_cast<void*>(seg_page_start),
                            seg_size,
                            prot | PROT_WRITE,
                            MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
