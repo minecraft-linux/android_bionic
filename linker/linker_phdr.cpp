@@ -528,6 +528,37 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
 // Reserve a virtual address range such that if it's limits were extended to the next 2**align
 // boundary, it would not overlap with any existing mappings.
 static void* ReserveAligned(size_t size, size_t align) {
+#if defined(__APPLE__) && defined(__aarch64__)
+  pthread_jit_write_protect_np(0);
+  int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT;
+  if (align == PAGE_SIZE) {
+    void* mmap_ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE | PROT_EXEC, mmap_flags, -1, 0);
+    if (mmap_ptr == MAP_FAILED) {
+      return nullptr;
+    }
+    return mmap_ptr;
+  }
+
+  // Allocate enough space so that the end of the desired region aligned up is still inside the
+  // mapping.
+  size_t mmap_size = align_up(size, align) + align - PAGE_SIZE;
+  uint8_t* mmap_ptr =
+      reinterpret_cast<uint8_t*>(mmap(nullptr, mmap_size, PROT_READ | PROT_WRITE | PROT_EXEC, mmap_flags, -1, 0));
+  if (mmap_ptr == MAP_FAILED) {
+    return nullptr;
+  }
+
+  uint8_t* first = align_up(mmap_ptr, align);
+  uint8_t* last = align_down(mmap_ptr + mmap_size, align) - size;
+
+  // arc4random* is not available in first stage init because /dev/urandom hasn't yet been
+  // created. Don't randomize then.
+  size_t n = 0;//is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
+  uint8_t* start = first + n * PAGE_SIZE;
+  munmap(mmap_ptr, start - mmap_ptr);
+  munmap(start + size, mmap_ptr + mmap_size - (start + size));
+  return start;
+#else
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
   if (align == PAGE_SIZE) {
     void* mmap_ptr = mmap(nullptr, size, PROT_NONE, mmap_flags, -1, 0);
@@ -556,6 +587,7 @@ static void* ReserveAligned(size_t size, size_t align) {
   munmap(mmap_ptr, start - mmap_ptr);
   munmap(start + size, mmap_ptr + mmap_size - (start + size));
   return start;
+#endif
 }
 
 // Reserve a virtual address range big enough to hold all loadable
@@ -639,21 +671,6 @@ bool ElfReader::LoadSegments() {
     }
     int prot = PFLAGS_TO_PROT(phdr->p_flags);
 #if defined(__APPLE__) && defined(__aarch64__)
-      if(prot & PROT_EXEC) {
-        prot |= MAP_JIT;
-      }
-      size_t seg_size = seg_page_end - seg_page_start;
-      void* seg_addr = mmap(reinterpret_cast<void*>(seg_page_start),
-                           seg_size,
-                           prot | PROT_WRITE,
-                           MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
-                           -1,
-                           0);
-      if (seg_addr == MAP_FAILED) {
-        DL_ERR("couldn't map \"%s\" segment %zd: %s", name_.c_str(), i, strerror(errno));
-        return false;
-      }
-
       if (file_length != 0) {
         auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
         if(seekoffset != (file_offset_ + file_page_start)) {
