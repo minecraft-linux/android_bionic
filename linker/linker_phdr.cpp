@@ -637,16 +637,37 @@ bool ElfReader::LoadSegments() {
           reinterpret_cast<void*>(file_end), file_size_);
       return false;
     }
-    if (file_length != 0) {
-      int prot = PFLAGS_TO_PROT(phdr->p_flags);
+    int prot = PFLAGS_TO_PROT(phdr->p_flags);
 #if defined(__APPLE__) && defined(__aarch64__)
-      if ((prot & (PROT_EXEC | PROT_WRITE)) == (PROT_EXEC | PROT_WRITE)) {
-        DL_ERR_AND_LOG("\"%s\": W+E load segments are not allowed", name_.c_str());
-      }
       if(prot & PROT_EXEC) {
         prot |= MAP_JIT;
       }
-#endif
+      size_t seg_size = seg_page_end - seg_page_start;
+      void* seg_addr = mmap(reinterpret_cast<void*>(seg_file_end),
+                           seg_size,
+                           prot | PROT_WRITE,
+                           MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
+                           -1,
+                           0);
+      if (seg_addr == MAP_FAILED) {
+        DL_ERR("couldn't map \"%s\" segment %zd: %s", name_.c_str(), i, strerror(errno));
+        return false;
+      }
+
+      if (file_length != 0) {
+        auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
+        if(seekoffset != (file_offset_ + file_page_start)) {
+          DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%d, seekoffset=%d", name_.c_str(), i, strerror(errno), (int)(file_offset_ + file_page_start), (int)seekoffset);
+          return false;
+        }
+        auto readsize = read(fd_, seg_addr, file_length);
+        if(readsize != file_length) {
+          DL_ERR("couldn't read \"%s\" segment %zd: %s, file_length=%d, readsize=%d", name_.c_str(), i, strerror(errno), (int)file_length, (int)readsize);
+          return false;
+        }
+      }
+#else
+    if (file_length != 0) {
 #if 0
       if ((prot & (PROT_EXEC | PROT_WRITE)) == (PROT_EXEC | PROT_WRITE)) {
         // W + E PT_LOAD segments are not allowed in O.
@@ -686,12 +707,6 @@ bool ElfReader::LoadSegments() {
     // between them. This is done by using a private anonymous
     // map for all extra pages.
     if (seg_page_end > seg_file_end) {
-      int prot = PFLAGS_TO_PROT(phdr->p_flags);
-#if defined(__APPLE__) && defined(__aarch64__)
-      if(prot & PROT_EXEC) {
-        prot |= MAP_JIT;
-      }
-#endif
       size_t zeromap_size = seg_page_end - seg_file_end;
       void* zeromap = mmap(reinterpret_cast<void*>(seg_file_end),
                            zeromap_size,
@@ -706,6 +721,7 @@ bool ElfReader::LoadSegments() {
 
       
     }
+    #endif
   }
   return true;
 }
