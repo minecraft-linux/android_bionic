@@ -675,13 +675,13 @@ bool ElfReader::LoadSegments() {
 #if 0
       if(prot & PROT_WRITE) {
         size_t seg_size = seg_page_end - seg_page_start;
-        void* seg_addr = mmap(seg_addr,
+        void* mmap_ret = mmap(seg_addr,
                             seg_size,
                             PROT_READ | PROT_WRITE,
                             MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
                             -1,
                             0);
-        if (seg_addr == MAP_FAILED) {
+        if (mmap_ret == MAP_FAILED) {
           DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
           return false;
         }
