@@ -673,6 +673,7 @@ bool ElfReader::LoadSegments() {
 #if defined(__APPLE__) && defined(__aarch64__)
       void* seg_addr = reinterpret_cast<void*>(seg_page_start);
 #if 0
+      // Doesn't work 4096 alignment is less than m1 allows
       if(prot & PROT_WRITE) {
         size_t seg_size = seg_page_end - seg_page_start;
         void* mmap_ret = mmap(seg_addr,
@@ -684,6 +685,23 @@ bool ElfReader::LoadSegments() {
         if (mmap_ret == MAP_FAILED) {
           DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
           return false;
+        }
+      }
+#else
+      if(prot & PROT_WRITE) {
+        auto my_seg_page_start = (seg_page_start + 4 * 4096) & ~(4 * 4096 - 1);
+        auto myseg_page_end = seg_page_end & ~(4 * 4096 - 1);
+        // We need to preserve the executable flag in segments next to this one
+        // m1 allocation granularity of 4 * 4096 may cause overlap of writeable and readonly executable segments
+        // actually we need to change the memory layout of the elf file to add a gap between segments
+        if(my_seg_page_start < myseg_page_end) {
+          // These region is safe to mark always writable and remove the execution bit
+          size_t seg_size = myseg_page_end - my_seg_page_start;
+          void* seg_addr = mmap(reinterpret_cast<void*>(my_seg_page_start), seg_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+          if (seg_addr == MAP_FAILED) {
+            DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
+            return false;
+          }
         }
       }
 #endif
