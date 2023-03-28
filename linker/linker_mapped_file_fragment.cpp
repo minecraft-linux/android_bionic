@@ -45,15 +45,23 @@ MappedFileFragment::~MappedFileFragment() {
   }
 }
 
+static off64_t __page_start(off64_t offset) {
+  return offset & ~static_cast<off64_t>(4*4096-1);
+}
+
+static size_t __page_offset(off64_t offset) {
+  return static_cast<size_t>(offset & (4*4096-1));
+}
+
 bool MappedFileFragment::Map(int fd, off64_t base_offset, size_t elf_offset, size_t size) {
   off64_t offset;
   CHECK(safe_add(&offset, base_offset, elf_offset));
 
-  off64_t page_min = page_start(offset);
+  off64_t page_min = __page_start(offset);
   off64_t end_offset;
 
   CHECK(safe_add(&end_offset, offset, size));
-  CHECK(safe_add(&end_offset, end_offset, page_offset(offset)));
+  CHECK(safe_add(&end_offset, end_offset, __page_offset(offset)));
 
   size_t map_size = static_cast<size_t>(end_offset - page_min);
   CHECK(map_size >= size);
@@ -68,7 +76,7 @@ bool MappedFileFragment::Map(int fd, off64_t base_offset, size_t elf_offset, siz
   map_start_ = map_start;
   map_size_ = map_size;
 
-  data_ = map_start + page_offset(offset);
+  data_ = map_start + __page_offset(offset);
   size_ = size;
 
   return true;
