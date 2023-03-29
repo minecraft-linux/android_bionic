@@ -488,11 +488,13 @@ bool ElfReader::ReadDynamicSection() {
  */
 size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
                                 ElfW(Addr)* out_min_vaddr,
-                                ElfW(Addr)* out_max_vaddr) {
+                                ElfW(Addr)* out_max_vaddr,
+                                void** writeableAfterExec) {
   ElfW(Addr) min_vaddr = UINTPTR_MAX;
   ElfW(Addr) max_vaddr = 0;
 
   bool found_pt_load = false;
+  bool prevExec = false;
   for (size_t i = 0; i < phdr_count; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table[i];
 
@@ -500,6 +502,13 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
       continue;
     }
     found_pt_load = true;
+
+    if(prevExec && phdr->p_flags & PF_W) {
+      if(writeableAfterExec) {
+        *writeableAfterExec = (void*) phdr->p_vaddr;
+      }
+    }
+    prevExec = phdr->p_flags & PF_X;
 
     if (phdr->p_vaddr < min_vaddr) {
       min_vaddr = phdr->p_vaddr;
@@ -531,13 +540,6 @@ static void* ReserveAligned(size_t size, size_t align) {
 #if defined(__APPLE__) && defined(__aarch64__)
   pthread_jit_write_protect_np(0);
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT;
-  if (align == PAGE_SIZE) {
-    void* mmap_ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE | PROT_EXEC, mmap_flags, -1, 0);
-    if (mmap_ptr == MAP_FAILED) {
-      return nullptr;
-    }
-    return mmap_ptr;
-  }
 
   // Allocate enough space so that the end of the desired region aligned up is still inside the
   // mapping.
@@ -555,6 +557,10 @@ static void* ReserveAligned(size_t size, size_t align) {
   // created. Don't randomize then.
   size_t n = 0;//is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
   uint8_t* start = first + n * PAGE_SIZE;
+
+  if(alignTo) {
+    start = first + 0x4000 - (((intptr_t)first + (intptr_t)alignTo ) & 0x3000);
+  }
   //munmap(mmap_ptr, start - mmap_ptr);
   //munmap(start + size, mmap_ptr + mmap_size - (start + size));
   return start;
@@ -594,8 +600,9 @@ static void* ReserveAligned(size_t size, size_t align) {
 // segments of a program header table. This is done by creating a
 // private anonymous mmap() with PROT_NONE.
 bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
+  void* writeableAfterExec;
   ElfW(Addr) min_vaddr;
-  load_size_ = phdr_table_get_load_size(phdr_table_, phdr_num_, &min_vaddr);
+  load_size_ = phdr_table_get_load_size(phdr_table_, phdr_num_, &min_vaddr, nullptr, &writeableAfterExec);
   if (load_size_ == 0) {
     DL_ERR("\"%s\" has no loadable segments", name_.c_str());
     return false;
@@ -610,7 +617,7 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
              load_size_ - address_space->reserved_size, load_size_, name_.c_str());
       return false;
     }
-    start = ReserveAligned(load_size_, kLibraryAlignment);
+    start = ReserveAligned(load_size_, kLibraryAlignment, writeableAfterExec);
     if (start == nullptr) {
       DL_ERR("couldn't reserve %zd bytes of address space for \"%s\"", load_size_, name_.c_str());
       return false;
@@ -687,7 +694,6 @@ bool ElfReader::LoadSegments() {
           return false;
         }
       }
-#else
       if(prot & PROT_WRITE) {
         auto my_seg_page_start = (seg_page_start + 4 * 4096) & ~(4 * 4096 - 1);
         auto myseg_page_end = seg_page_end & ~(4 * 4096 - 1);
@@ -702,6 +708,17 @@ bool ElfReader::LoadSegments() {
             DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
             return false;
           }
+        }
+      }
+#else
+      if(prot & PROT_WRITE) {
+        auto my_seg_page_start = seg_page_start & ~(4 * 4096 - 1);
+        auto myseg_page_end = (seg_page_end + 4 * 4096) & ~(4 * 4096 - 1);
+        size_t seg_size = myseg_page_end - my_seg_page_start;
+        void* seg_addr = mmap(reinterpret_cast<void*>(my_seg_page_start), seg_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+        if (seg_addr == MAP_FAILED) {
+          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
+          return false;
         }
       }
 #endif
