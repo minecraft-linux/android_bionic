@@ -536,7 +536,7 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
 
 // Reserve a virtual address range such that if it's limits were extended to the next 2**align
 // boundary, it would not overlap with any existing mappings.
-static void* ReserveAligned(size_t size, size_t align) {
+static void* ReserveAligned(size_t size, size_t align, void* alignTo) {
 #if defined(__APPLE__) && defined(__aarch64__)
   pthread_jit_write_protect_np(0);
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT;
