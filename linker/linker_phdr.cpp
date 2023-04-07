@@ -536,7 +536,7 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
 
 // Reserve a virtual address range such that if it's limits were extended to the next 2**align
 // boundary, it would not overlap with any existing mappings.
-static void* ReserveAligned(size_t size, size_t align, void* alignTo) {
+static void* ReserveAligned(size_t size, size_t align) {
 #if defined(__APPLE__) && defined(__aarch64__)
   pthread_jit_write_protect_np(0);
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT;
@@ -558,9 +558,6 @@ static void* ReserveAligned(size_t size, size_t align, void* alignTo) {
   size_t n = 0;//is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
   uint8_t* start = first + n * PAGE_SIZE;
 
-  if(alignTo) {
-    start = first + 0x4000 - (((intptr_t)first + (intptr_t)alignTo ) & 0x3000);
-  }
   //munmap(mmap_ptr, start - mmap_ptr);
   //munmap(start + size, mmap_ptr + mmap_size - (start + size));
   return start;
@@ -617,7 +614,7 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
              load_size_ - address_space->reserved_size, load_size_, name_.c_str());
       return false;
     }
-    start = ReserveAligned(load_size_, kLibraryAlignment, writeableAfterExec);
+    start = ReserveAligned(load_size_, kLibraryAlignment);
     if (start == nullptr) {
       DL_ERR("couldn't reserve %zd bytes of address space for \"%s\"", load_size_, name_.c_str());
       return false;
@@ -633,6 +630,15 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
 
   load_start_ = start;
   load_bias_ = reinterpret_cast<uint8_t*>(start) - addr;
+#if defined(__APPLE__) && defined(__aarch64__)
+  INFO("[ Reserved Memory before extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
+  if(writeableAfterExec) {
+    auto __load_bias_2 = load_bias_ + 0x4000 - (((intptr_t)load_bias_ + (intptr_t)writeableAfterExec ) & 0x3000);
+    load_start_ += __load_bias_2 - load_bias_;
+    load_bias_ = __load_bias_2;
+  }
+  INFO("[ Reserved Memory after extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
+#endif
   return true;
 }
 
