@@ -2936,6 +2936,7 @@ static soinfo_list_t g_empty_list;
 
 bool soinfo::prelink_image() {
   if (flags_ & FLAG_PRELINKED) return true;
+  DEBUG("si->load_bias %p si->base = %p si->flags = 0x%08x", reinterpret_cast<void*>(load_bias), reinterpret_cast<void*>(base), flags_);
   /* Extract dynamic section */
   ElfW(Word) dynamic_flags = 0;
   phdr_table_get_dynamic_section(phdr, phnum, load_bias, &dynamic, &dynamic_flags);

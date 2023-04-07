@@ -741,7 +741,7 @@ bool ElfReader::LoadSegments() {
           return false;
         }
       }
-      INFO("[LoadedSegement] %s @ %p file_length=%lld seg_start=%p seg_end=%p", name_.c_str(), seg_addr, file_length, seg_start, seg_end);
+      INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
 #else
     if (file_length != 0) {
 #if 0
@@ -1160,6 +1160,7 @@ void phdr_table_get_dynamic_section(const ElfW(Phdr)* phdr_table, size_t phdr_co
   for (size_t i = 0; i<phdr_count; ++i) {
     const ElfW(Phdr)& phdr = phdr_table[i];
     if (phdr.p_type == PT_DYNAMIC) {
+
       *dynamic = reinterpret_cast<ElfW(Dyn)*>(load_bias + phdr.p_vaddr);
       if (dynamic_flags) {
         *dynamic_flags = phdr.p_flags;
