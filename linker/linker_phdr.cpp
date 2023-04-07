@@ -634,7 +634,7 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
   INFO("[ Reserved Memory before extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
   if(writeableAfterExec) {
     auto __load_bias_2 = load_bias_ + 0x4000 - (((intptr_t)load_bias_ + (intptr_t)writeableAfterExec ) & 0x3000);
-    load_start_ += __load_bias_2 - load_bias_;
+    load_start_ = reinterpret_cast<uint8_t*>(start) + (__load_bias_2 - load_bias_);
     load_bias_ = __load_bias_2;
   }
   INFO("[ Reserved Memory after extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
