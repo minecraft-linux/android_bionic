@@ -660,6 +660,8 @@ bool ElfReader::LoadSegments() {
 #else
     if (phdr->p_type != PT_LOAD) {
 #endif
+          continue;
+    }
 
     // Segment addresses in memory.
     ElfW(Addr) seg_start = phdr->p_vaddr + load_bias_;
