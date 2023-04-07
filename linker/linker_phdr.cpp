@@ -498,7 +498,12 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
   for (size_t i = 0; i < phdr_count; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table[i];
 
+#if defined(__APPLE__) && defined(__aarch64__)
+    // Seems like the reserved memory regions has a overlap with PT_DYNAMIC
+    if (phdr->p_type != PT_LOAD && phdr->p_type != PT_DYNAMIC) {
+#else
     if (phdr->p_type != PT_LOAD) {
+#endif
       continue;
     }
     found_pt_load = true;
@@ -649,9 +654,12 @@ bool ElfReader::LoadSegments() {
   for (size_t i = 0; i < phdr_num_; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table_[i];
 
+#if defined(__APPLE__) && defined(__aarch64__)
+    // Seems like the reserved memory regions has a overlap with PT_DYNAMIC
+    if (phdr->p_type != PT_LOAD && phdr->p_type != PT_DYNAMIC) {
+#else
     if (phdr->p_type != PT_LOAD) {
-      continue;
-    }
+#endif
 
     // Segment addresses in memory.
     ElfW(Addr) seg_start = phdr->p_vaddr + load_bias_;
