@@ -741,6 +741,7 @@ bool ElfReader::LoadSegments() {
           return false;
         }
       }
+      INFO("[LoadedSegement] %s @ %p file_length=%lld seg_start=%p seg_end=%p", name_.c_str(), seg_addr, file_length, seg_start, seg_end);
 #else
     if (file_length != 0) {
 #if 0
