@@ -130,7 +130,7 @@ soinfo* solist_get_vdso() {
 }
 
 bool g_is_ldd;
-int g_ld_debug_verbosity = 5;
+int g_ld_debug_verbosity = -1;
 
 static std::vector<std::string> g_ld_preload_names;
 
