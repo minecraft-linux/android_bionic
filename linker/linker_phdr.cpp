@@ -751,6 +751,16 @@ bool ElfReader::LoadSegments() {
           return false;
         }
       }
+      // Patch instructions for macOS/m1
+      if(prot & PROT_EXEC) {
+        auto c = (uint32_t*)seg_start;
+        auto e = (uint32_t*)seg_end;
+        for(; (e - c) > 0; c++) {
+          if((*c & 0xffffffe0) == 0xd53bd040) {
+            *c = 0xd53bd060 | (*c & 0x0000001f);
+          }
+        }
+      }
       INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
 #else
     if (file_length != 0) {
