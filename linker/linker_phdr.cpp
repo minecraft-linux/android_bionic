@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstdlib>
 
 #include "linker.h"
 #include "linker_dlwarning.h"
@@ -498,12 +499,7 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
   for (size_t i = 0; i < phdr_count; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table[i];
 
-#if defined(__APPLE__) && defined(__aarch64__)
-    // Seems like the reserved memory regions has a overlap with PT_DYNAMIC
-    if (phdr->p_type != PT_LOAD && phdr->p_type != PT_DYNAMIC) {
-#else
     if (phdr->p_type != PT_LOAD) {
-#endif
       continue;
     }
     found_pt_load = true;
@@ -565,6 +561,7 @@ static void* ReserveAligned(size_t size, size_t align) {
 
   //munmap(mmap_ptr, start - mmap_ptr);
   //munmap(start + size, mmap_ptr + mmap_size - (start + size));
+  PRINT("Allocated RWX MAP_JIT segment @ %p size %lld", reinterpret_cast<void*>(start), (long long)size);
   return start;
 #else
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -636,13 +633,13 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
   load_start_ = start;
   load_bias_ = reinterpret_cast<uint8_t*>(start) - addr;
 #if defined(__APPLE__) && defined(__aarch64__)
-  INFO("[ Reserved Memory before extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
+  PRINT("[ Reserved Memory before extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
   if(writeableAfterExec) {
     auto __load_bias_2 = load_bias_ + 0x4000 - (((intptr_t)load_bias_ + (intptr_t)writeableAfterExec ) & 0x3000);
     load_start_ = reinterpret_cast<uint8_t*>(start) + (__load_bias_2 - load_bias_);
     load_bias_ = __load_bias_2;
   }
-  INFO("[ Reserved Memory after extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
+  PRINT("[ Reserved Memory after extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
 #endif
   return true;
 }
@@ -650,17 +647,45 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
 bool ElfReader::LoadSegments() {
 #if defined(__APPLE__) && defined(__aarch64__)
   pthread_jit_write_protect_np(0);
+  // Due to overlapping pages do this before copy the data
+  for (size_t i = 0; i < phdr_num_; ++i) {
+    const ElfW(Phdr)* phdr = &phdr_table_[i];
+
+    if (phdr->p_type != PT_LOAD) {
+      continue;
+    }
+
+    // Segment addresses in memory.
+    ElfW(Addr) seg_start = phdr->p_vaddr + load_bias_;
+    ElfW(Addr) seg_end   = seg_start + phdr->p_memsz;
+
+    ElfW(Addr) seg_page_start = PAGE_START(seg_start);
+    ElfW(Addr) seg_page_end   = PAGE_END(seg_end);
+
+    int prot = PFLAGS_TO_PROT(phdr->p_flags);
+    if(prot & PROT_WRITE) {
+      auto my_seg_page_start = seg_page_start & ~(4 * 4096 - 1);
+      auto myseg_page_end = (seg_page_end + 4 * 4096) & ~(4 * 4096 - 1);
+      size_t seg_size = myseg_page_end - my_seg_page_start;
+      void* seg_addr = mmap(reinterpret_cast<void*>(my_seg_page_start), seg_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+      if (seg_addr == MAP_FAILED) {
+        DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
+        return false;
+      }
+      PRINT("remapped \"%s\" segment %zd seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld to be RW", name_.c_str(), i, (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
+    }
+  }
+  const char * MCPELAUNCHER_LINKER_COPY_INDIRECT = getenv("MCPELAUNCHER_LINKER_COPY_INDIRECT");
+  int copy_indirect = 1;
+  if(MCPELAUNCHER_LINKER_COPY_INDIRECT) {
+    copy_indirect = std::stoi(std::string(MCPELAUNCHER_LINKER_COPY_INDIRECT));
+  }
 #endif
   for (size_t i = 0; i < phdr_num_; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table_[i];
 
-#if defined(__APPLE__) && defined(__aarch64__)
-    // Seems like the reserved memory regions has a overlap with PT_DYNAMIC
-    if (phdr->p_type != PT_LOAD && phdr->p_type != PT_DYNAMIC) {
-#else
     if (phdr->p_type != PT_LOAD) {
-#endif
-          continue;
+      continue;
     }
 
     // Segment addresses in memory.
@@ -695,49 +720,6 @@ bool ElfReader::LoadSegments() {
     int prot = PFLAGS_TO_PROT(phdr->p_flags);
 #if defined(__APPLE__) && defined(__aarch64__)
       void* seg_addr = reinterpret_cast<void*>(seg_page_start);
-#if 0
-      // Doesn't work 4096 alignment is less than m1 allows
-      if(prot & PROT_WRITE) {
-        size_t seg_size = seg_page_end - seg_page_start;
-        void* mmap_ret = mmap(seg_addr,
-                            seg_size,
-                            PROT_READ | PROT_WRITE,
-                            MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
-                            -1,
-                            0);
-        if (mmap_ret == MAP_FAILED) {
-          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
-          return false;
-        }
-      }
-      if(prot & PROT_WRITE) {
-        auto my_seg_page_start = (seg_page_start + 4 * 4096) & ~(4 * 4096 - 1);
-        auto myseg_page_end = seg_page_end & ~(4 * 4096 - 1);
-        // We need to preserve the executable flag in segments next to this one
-        // m1 allocation granularity of 4 * 4096 may cause overlap of writeable and readonly executable segments
-        // actually we need to change the memory layout of the elf file to add a gap between segments
-        if(my_seg_page_start < myseg_page_end) {
-          // These region is safe to mark always writable and remove the execution bit
-          size_t seg_size = myseg_page_end - my_seg_page_start;
-          void* seg_addr = mmap(reinterpret_cast<void*>(my_seg_page_start), seg_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-          if (seg_addr == MAP_FAILED) {
-            DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
-            return false;
-          }
-        }
-      }
-#else
-      if(prot & PROT_WRITE) {
-        auto my_seg_page_start = seg_page_start & ~(4 * 4096 - 1);
-        auto myseg_page_end = (seg_page_end + 4 * 4096) & ~(4 * 4096 - 1);
-        size_t seg_size = myseg_page_end - my_seg_page_start;
-        void* seg_addr = mmap(reinterpret_cast<void*>(my_seg_page_start), seg_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-        if (seg_addr == MAP_FAILED) {
-          DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
-          return false;
-        }
-      }
-#endif
 
       if (file_length != 0) {
         auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
@@ -745,10 +727,28 @@ bool ElfReader::LoadSegments() {
           DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%lld, seekoffset=%lld", name_.c_str(), i, strerror(errno), (long long)(file_offset_ + file_page_start), (long long)seekoffset);
           return false;
         }
-        auto readsize = read(fd_, seg_addr, file_length);
-        if(readsize != file_length) {
-          DL_ERR("couldn't read \"%s\" segment %zd: %s, file_length=%lld, readsize=%lld", name_.c_str(), i, strerror(errno), (long long)file_length, (long long)readsize);
-          return false;
+
+        if(copy_indirect == 0) {
+          auto readsize = read(fd_, seg_addr, file_length);
+          if(readsize != file_length) {
+            DL_ERR("couldn't read \"%s\" segment %zd: %s, file_length=%lld, readsize=%lld", name_.c_str(), i, strerror(errno), (long long)file_length, (long long)readsize);
+            return false;
+          }
+        } else {
+          auto remainingBytes = file_length;
+          auto dest = (unsigned char*)seg_addr;
+          unsigned char buffer[4096];
+          while(remainingBytes > 0) {
+            auto expectedreadsize = remainingBytes < 4096 ? remainingBytes : 4096;
+            auto readsize = read(fd_, buffer, expectedreadsize);
+            if(readsize != expectedreadsize) {
+              DL_ERR("couldn't read \"%s\" segment %zd: %s, expectedreadsize=%lld, readsize=%lld, remainingBytes=%lld, file_length=%lld", name_.c_str(), i, strerror(errno), (long long)expectedreadsize, (long long)readsize, (long long)remainingBytes, (long long)file_length);
+              return false;
+            }
+            memcpy(dest, buffer, readsize);
+            dest += readsize;
+            remainingBytes -= readsize;
+          }
         }
       }
       // Patch instructions for macOS/m1
