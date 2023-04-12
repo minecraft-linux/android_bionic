@@ -45,6 +45,7 @@
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include <libkern/OSCacheControl.h>
+#include <android-base/scopeguard.h>
 #endif
 
 #include "private/CFIShadow.h" // For kLibraryAlignment
@@ -539,7 +540,6 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
 // boundary, it would not overlap with any existing mappings.
 static void* ReserveAligned(size_t size, size_t align) {
 #if defined(__APPLE__) && defined(__aarch64__)
-  pthread_jit_write_protect_np(0);
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT;
 
   // Allocate enough space so that the end of the desired region aligned up is still inside the
@@ -646,7 +646,14 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
 
 bool ElfReader::LoadSegments() {
 #if defined(__APPLE__) && defined(__aarch64__)
+  INFO("[macOS/m1] pthread_jit_write_protect_np(0)");
   pthread_jit_write_protect_np(0);
+
+  auto scope_guard = android::base::make_scope_guard([&]() {
+    INFO("[macOS/m1] pthread_jit_write_protect_np(1)");
+    pthread_jit_write_protect_np(1);
+  });
+
   // Due to overlapping pages do this before copy the data
   for (size_t i = 0; i < phdr_num_; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table_[i];
@@ -751,6 +758,7 @@ bool ElfReader::LoadSegments() {
           }
         }
       }
+      INFO("[macOS/m1] Patch instructions");
       // Patch instructions for macOS/m1
       if(prot & PROT_EXEC) {
         auto c = (uint32_t*)seg_start;
@@ -761,6 +769,8 @@ bool ElfReader::LoadSegments() {
           }
         }
       }
+      INFO("[macOS/m1] sys_icache_invalidate");
+      sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
       INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
 #else
     if (file_length != 0) {
@@ -828,28 +838,6 @@ bool ElfReader::LoadSegments() {
  */
 static int _phdr_table_set_load_prot(const ElfW(Phdr)* phdr_table, size_t phdr_count,
                                      ElfW(Addr) load_bias, int extra_prot_flags) {
-#if defined(__APPLE__) && defined(__aarch64__)
-  pthread_jit_write_protect_np((extra_prot_flags & PROT_WRITE) ? 0 : 1);
-  //sys_icache_invalidate(addr, size);
-  const ElfW(Phdr)* phdr = phdr_table;
-  const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
-
-  for (; phdr < phdr_limit; phdr++) {
-    if (phdr->p_type != PT_LOAD || (phdr->p_flags & PF_W) != 0) {
-      continue;
-    }
-
-    ElfW(Addr) seg_page_start = PAGE_START(phdr->p_vaddr) + load_bias;
-    ElfW(Addr) seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz) + load_bias;
-
-    int prot = PFLAGS_TO_PROT(phdr->p_flags);
-    if ((extra_prot_flags & PROT_WRITE) == 0) {
-      // make sure we're never simultaneously writable / executable
-      prot |= PROT_EXEC;
-      sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
-    }
-  }
-#endif
 #if 0
   const ElfW(Phdr)* phdr = phdr_table;
   const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
