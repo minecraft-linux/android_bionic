@@ -758,9 +758,9 @@ bool ElfReader::LoadSegments() {
           }
         }
       }
-      INFO("[macOS/m1] Patch instructions");
       // Patch instructions for macOS/m1
       if(prot & PROT_EXEC) {
+        INFO("[macOS/m1] Patch instructions");
         auto c = (uint32_t*)seg_start;
         auto e = (uint32_t*)seg_end;
         for(; (e - c) > 0; c++) {
@@ -768,9 +768,9 @@ bool ElfReader::LoadSegments() {
             *c = 0xd53bd060 | (*c & 0x0000001f);
           }
         }
+        INFO("[macOS/m1] sys_icache_invalidate");
+        sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
       }
-      INFO("[macOS/m1] sys_icache_invalidate");
-      sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
       INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
 #else
     if (file_length != 0) {
