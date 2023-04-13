@@ -682,11 +682,6 @@ bool ElfReader::LoadSegments() {
       PRINT("remapped \"%s\" segment %zd seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld to be RW", name_.c_str(), i, (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
     }
   }
-  const char * MCPELAUNCHER_LINKER_COPY_INDIRECT = getenv("MCPELAUNCHER_LINKER_COPY_INDIRECT");
-  int copy_indirect = 1;
-  if(MCPELAUNCHER_LINKER_COPY_INDIRECT) {
-    copy_indirect = std::stoi(std::string(MCPELAUNCHER_LINKER_COPY_INDIRECT));
-  }
 #endif
   for (size_t i = 0; i < phdr_num_; ++i) {
     const ElfW(Phdr)* phdr = &phdr_table_[i];
@@ -726,52 +721,45 @@ bool ElfReader::LoadSegments() {
     }
     int prot = PFLAGS_TO_PROT(phdr->p_flags);
 #if defined(__APPLE__) && defined(__aarch64__)
-      void* seg_addr = reinterpret_cast<void*>(seg_page_start);
+    void* seg_addr = reinterpret_cast<void*>(seg_page_start);
 
-      if (file_length != 0) {
-        auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
-        if(seekoffset != (file_offset_ + file_page_start)) {
-          DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%lld, seekoffset=%lld", name_.c_str(), i, strerror(errno), (long long)(file_offset_ + file_page_start), (long long)seekoffset);
+    if (file_length != 0) {
+      auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
+      if(seekoffset != (file_offset_ + file_page_start)) {
+        DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%lld, seekoffset=%lld", name_.c_str(), i, strerror(errno), (long long)(file_offset_ + file_page_start), (long long)seekoffset);
+        return false;
+      }
+
+      auto remainingBytes = file_length;
+      auto dest = (unsigned char*)seg_addr;
+      unsigned char buffer[4096];
+      while(remainingBytes > 0) {
+        auto expectedreadsize = remainingBytes < 4096 ? remainingBytes : 4096;
+        auto readsize = read(fd_, buffer, expectedreadsize);
+        if(readsize != expectedreadsize) {
+          DL_ERR("couldn't read \"%s\" segment %zd: %s, expectedreadsize=%lld, readsize=%lld, remainingBytes=%lld, file_length=%lld", name_.c_str(), i, strerror(errno), (long long)expectedreadsize, (long long)readsize, (long long)remainingBytes, (long long)file_length);
           return false;
         }
-
-        if(copy_indirect == 0) {
-          auto readsize = read(fd_, seg_addr, file_length);
-          if(readsize != file_length) {
-            DL_ERR("couldn't read \"%s\" segment %zd: %s, file_length=%lld, readsize=%lld", name_.c_str(), i, strerror(errno), (long long)file_length, (long long)readsize);
-            return false;
-          }
-        } else {
-          auto remainingBytes = file_length;
-          auto dest = (unsigned char*)seg_addr;
-          unsigned char buffer[4096];
-          while(remainingBytes > 0) {
-            auto expectedreadsize = remainingBytes < 4096 ? remainingBytes : 4096;
-            auto readsize = read(fd_, buffer, expectedreadsize);
-            if(readsize != expectedreadsize) {
-              DL_ERR("couldn't read \"%s\" segment %zd: %s, expectedreadsize=%lld, readsize=%lld, remainingBytes=%lld, file_length=%lld", name_.c_str(), i, strerror(errno), (long long)expectedreadsize, (long long)readsize, (long long)remainingBytes, (long long)file_length);
-              return false;
-            }
-            memcpy(dest, buffer, readsize);
-            dest += readsize;
-            remainingBytes -= readsize;
-          }
+        memcpy(dest, buffer, readsize);
+        dest += readsize;
+        remainingBytes -= readsize;
+      }
+    }
+    // Patch instructions for macOS/m1
+    if(prot & PROT_EXEC) {
+      INFO("[macOS/m1] Patch instructions");
+      auto c = (uint32_t*)seg_start;
+      auto e = (uint32_t*)seg_end;
+      for(; (e - c) > 0; c++) {
+        // Replace "mrs %0, tpidr_el0" with "mrs %0, tpidrro_el0"
+        if((*c & 0xffffffe0) == 0xd53bd040) {
+          *c = 0xd53bd060 | (*c & 0x0000001f);
         }
       }
-      // Patch instructions for macOS/m1
-      if(prot & PROT_EXEC) {
-        INFO("[macOS/m1] Patch instructions");
-        auto c = (uint32_t*)seg_start;
-        auto e = (uint32_t*)seg_end;
-        for(; (e - c) > 0; c++) {
-          if((*c & 0xffffffe0) == 0xd53bd040) {
-            *c = 0xd53bd060 | (*c & 0x0000001f);
-          }
-        }
-        INFO("[macOS/m1] sys_icache_invalidate");
-        sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
-      }
-      INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
+      INFO("[macOS/m1] sys_icache_invalidate");
+      sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
+    }
+    INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
 #else
     if (file_length != 0) {
 #if 0
