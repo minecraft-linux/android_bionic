@@ -543,6 +543,10 @@ void soinfo::call_pre_init_constructors() {
   call_array("DT_PREINIT_ARRAY", preinit_array_, preinit_array_count_, false, get_realpath());
 }
 
+extern "C" void mcpelauncher_linker_notifylldb(const char* filename, size_t offset) {
+  _PRINTVF(-2, "mcpelauncher_linker_notifylldb %s 0x%llx", filename, (long long)offset);
+}
+
 void soinfo::call_constructors() {
   if (constructors_called || g_is_ldd) {
     return;
@@ -576,6 +580,8 @@ void soinfo::call_constructors() {
     bionic_trace_begin((std::string("calling constructors: ") + get_realpath()).c_str());
   }
 #endif
+
+  mcpelauncher_linker_notifylldb(get_realpath(), base);
 
   // DT_INIT should be called before DT_INIT_ARRAY if both are present.
   call_function("DT_INIT", init_func_, get_realpath());
