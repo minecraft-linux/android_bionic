@@ -561,7 +561,7 @@ static void* ReserveAligned(size_t size, size_t align) {
 
   //munmap(mmap_ptr, start - mmap_ptr);
   //munmap(start + size, mmap_ptr + mmap_size - (start + size));
-  PRINT("Allocated RWX MAP_JIT segment @ %p size %lld", reinterpret_cast<void*>(start), (long long)size);
+  INFO("Allocated RWX MAP_JIT segment @ %p size %lld", reinterpret_cast<void*>(start), (long long)size);
   return start;
 #else
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -633,13 +633,13 @@ bool ElfReader::ReserveAddressSpace(address_space_params* address_space) {
   load_start_ = start;
   load_bias_ = reinterpret_cast<uint8_t*>(start) - addr;
 #if defined(__APPLE__) && defined(__aarch64__)
-  PRINT("[ Reserved Memory before extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
+  INFO("[ Reserved Memory before extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
   if(writeableAfterExec) {
     auto __load_bias_2 = load_bias_ + 0x4000 - (((intptr_t)load_bias_ + (intptr_t)writeableAfterExec ) & 0x3000);
     load_start_ = reinterpret_cast<uint8_t*>(start) + (__load_bias_2 - load_bias_);
     load_bias_ = __load_bias_2;
   }
-  PRINT("[ Reserved Memory after extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
+  INFO("[ Reserved Memory after extra align ] load_start_=%p load_bias_=%p", load_start_, load_bias_);
 #endif
   return true;
 }
@@ -676,10 +676,10 @@ bool ElfReader::LoadSegments() {
       size_t seg_size = myseg_page_end - my_seg_page_start;
       void* seg_addr = mmap(reinterpret_cast<void*>(my_seg_page_start), seg_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
       if (seg_addr == MAP_FAILED) {
-        DL_ERR("couldn't map \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
+        DL_ERR("couldn't remap \"%s\" segment %zd: %s, seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld to be RW", name_.c_str(), i, strerror(errno), (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
         return false;
       }
-      PRINT("remapped \"%s\" segment %zd seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld to be RW", name_.c_str(), i, (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
+      INFO("remapped \"%s\" segment %zd seg_page_addr=%lld, seg_size=%lld, load_bias_=%lld to be RW", name_.c_str(), i, (long long)(intptr_t)reinterpret_cast<void*>(my_seg_page_start), (long long)(intptr_t)seg_size, (long long)(intptr_t)load_bias_);
     }
   }
 #endif
@@ -1156,7 +1156,7 @@ void phdr_table_get_dynamic_section(const ElfW(Phdr)* phdr_table, size_t phdr_co
   for (size_t i = 0; i<phdr_count; ++i) {
     const ElfW(Phdr)& phdr = phdr_table[i];
     if (phdr.p_type == PT_DYNAMIC) {
-      DEBUG("load_bias %p p_vaddr %p i %zi", reinterpret_cast<void*>(load_bias), reinterpret_cast<void*>(phdr.p_vaddr), i);
+      INFO("PT_DYNAMIC load_bias %p p_vaddr %p i %zi", reinterpret_cast<void*>(load_bias), reinterpret_cast<void*>(phdr.p_vaddr), i);
       *dynamic = reinterpret_cast<ElfW(Dyn)*>(load_bias + phdr.p_vaddr);
       if (dynamic_flags) {
         *dynamic_flags = phdr.p_flags;
