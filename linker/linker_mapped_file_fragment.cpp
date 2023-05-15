@@ -35,6 +35,18 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#if defined(__APPLE__) && defined(__aarch64__)
+#define page_start __page_start
+#define page_offset __page_offset
+static off64_t __page_start(off64_t offset) {
+  return offset & ~static_cast<off64_t>(4*4096-1);
+}
+
+static size_t __page_offset(off64_t offset) {
+  return static_cast<size_t>(offset & (4*4096-1));
+}
+#endif
+
 MappedFileFragment::MappedFileFragment() : map_start_(nullptr), map_size_(0),
                                            data_(nullptr), size_ (0)
 { }

@@ -547,6 +547,7 @@ void soinfo::call_constructors() {
   if (constructors_called || g_is_ldd) {
     return;
   }
+  INFO("call_constructors [ base %p load_bias %p for '%s' ]", reinterpret_cast<void*>(base), reinterpret_cast<void*>(load_bias), get_realpath());
 
   // We set constructors_called before actually calling the constructors, otherwise it doesn't
   // protect against recursive constructor calls. One simple example of constructor recursion
