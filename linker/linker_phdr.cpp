@@ -786,6 +786,21 @@ bool ElfReader::LoadSegments() {
         DL_ERR("couldn't map \"%s\" segment %zd: %s", name_.c_str(), i, strerror(errno));
         return false;
       }
+#if defined(__APPLE__) && defined(__x86_64__)
+      // Patch access to the fs:0x28 register .to read gs:0x28 instead to avoid an 0x28 access error
+      // which cannot be ignored to handle it in a signal handler in lldb
+      if(phdr->p_flags & PF_X) {
+        unsigned char seq1[] = { 0x64, 0x48, 0x8B };
+        unsigned char seq2[] = { 0x25, 0x28, 0x00, 0x00 };
+        //64 48 8B ?? 25 28 00 00
+        for(unsigned char* addr = reinterpret_cast<unsigned char*>(seg_page_start), *end = reinterpret_cast<unsigned char*>(seg_page_end) - 8; addr < end; addr++) {
+          if(memcmp(seq1, addr, sizeof(seq1)) == 0 && memcmp(seq2, addr + sizeof(seq1) + 1, sizeof(seq2)) == 0) {
+            *addr = 0x65;
+            addr += sizeof(seq1) + sizeof(seq2);
+          }
+        }
+      }
+#endif
     }
 
     // if the segment is writable, and does not end on a page boundary,
