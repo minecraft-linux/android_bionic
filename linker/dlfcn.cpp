@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <mutex>
+
 #include <android/api-level.h>
 
 // #include <bionic/pthread_internal.h>
@@ -94,7 +96,7 @@ _Unwind_Ptr __loader_dl_unwind_find_exidx(_Unwind_Ptr pc, int* pcount) __LINKER_
 #endif
 }
 
-static pthread_mutex_t g_dl_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static std::mutex g_dl_mutex;
 #define __BIONIC_DLERROR_BUFFER_SIZE 512
 struct android_pthread_internal {
   char * current_dlerror;
@@ -293,7 +295,6 @@ android_namespace_t* __loader_android_get_exported_namespace(const char* name) {
 }
 
 void __loader_cfi_fail(uint64_t CallSiteTypeId, void* Ptr, void *DiagData, void *CallerPc) {
-  CFIShadowWriter::CfiFail(CallSiteTypeId, Ptr, DiagData, CallerPc);
 }
 
 void __loader_add_thread_local_dtor(void* dso_handle) {

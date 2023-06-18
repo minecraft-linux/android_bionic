@@ -46,6 +46,7 @@ class MappedFileFragment {
   size_t map_size_;
   void* data_;
   size_t size_;
+  intptr_t fileMapping;
 
   DISALLOW_COPY_AND_ASSIGN(MappedFileFragment);
 };

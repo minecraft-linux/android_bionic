@@ -31,6 +31,8 @@
 #include "linker_soinfo.h"
 #include "linker_utils.h"
 #include <string.h>
+#define NO_DIRNAME
+#include <libgen.h>
 #include <algorithm>
 
 #include <dlfcn.h>

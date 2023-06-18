@@ -28,7 +28,7 @@
 
 #include "linker_gdb_support.h"
 
-#include <pthread.h>
+#include <mutex>
 
 #include "private/ScopedPthreadMutexLocker.h"
 
@@ -40,7 +40,7 @@ void __attribute__((noinline)) __attribute__((visibility("default"))) rtld_db_dl
 r_debug _r_debug =
     {1, nullptr, reinterpret_cast<uintptr_t>(&rtld_db_dlactivity), r_debug::RT_CONSISTENT, 0};
 
-static pthread_mutex_t g__r_debug_mutex = PTHREAD_MUTEX_INITIALIZER;
+static std::mutex g__r_debug_mutex;
 static link_map* r_debug_tail = nullptr;
 
 void insert_link_map_into_debug_map(link_map* map) {

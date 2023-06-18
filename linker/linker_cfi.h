@@ -100,5 +100,3 @@ class CFIShadowWriter : private CFIShadow {
   // Handle failure to locate __cfi_check for a target address.
   static void CfiFail(uint64_t CallSiteTypeId, void* Ptr, void* DiagData, void *caller_pc);
 };
-
-CFIShadowWriter* get_cfi_shadow();

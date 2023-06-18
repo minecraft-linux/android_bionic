@@ -244,7 +244,7 @@ static bool parse_config_file(const char* ld_config_file_path,
       // If the path can be resolved, resolve it
       char buf[PATH_MAX];
       std::string resolved_path;
-      if (access(value.c_str(), R_OK) != 0) {
+      if (access(value.c_str(), 4) != 0) {
         if (errno == ENOENT) {
           // no need to test for non-existing path. skip.
           continue;

@@ -32,6 +32,7 @@
 #include <sys/mman.h>
 // #include <sys/prctl.h>
 #include <unistd.h>
+#include <windows.h>
 
 static constexpr size_t kAllocateSize = PAGE_SIZE * 100;
 static_assert(kAllocateSize % PAGE_SIZE == 0, "Invalid kAllocateSize.");
@@ -126,9 +127,8 @@ void LinkerBlockAllocator::create_new_page() {
                 "Invalid sizeof(LinkerBlockAllocatorPage)");
 
   LinkerBlockAllocatorPage* page = reinterpret_cast<LinkerBlockAllocatorPage*>(
-      mmap(nullptr, kAllocateSize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0));
-
-  if (page == MAP_FAILED) {
+      VirtualAlloc(nullptr, kAllocateSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  if (!page) {
     abort(); // oom
   }
 
@@ -170,7 +170,7 @@ void LinkerBlockAllocator::purge() {
   LinkerBlockAllocatorPage* page = page_list_;
   while (page) {
     LinkerBlockAllocatorPage* next = page->next;
-    munmap(page, kAllocateSize);
+    VirtualFree(page, kAllocateSize, MEM_RELEASE);
     page = next;
   }
   page_list_ = nullptr;

@@ -483,8 +483,6 @@ static ElfW(Addr) linker_main(KernelArgumentBlock& args, const char* exe_to_load
   linker_finalize_static_tls();
   __libc_init_main_thread_final();
 
-  if (!get_cfi_shadow()->InitialLinkDone(solist)) __linker_cannot_link(g_argv[0]);
-
   si->call_pre_init_constructors();
   si->call_constructors();
 

@@ -33,9 +33,11 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <windows.h>
+#include <io.h>
 #include <unistd.h>
 
-#if defined(__APPLE__) && defined(__aarch64__)
+#if defined(__APPLE__) && defined(__aarch64__) || defined(_WIN32)
 #define page_start __page_start
 #define page_offset __page_offset
 static off64_t __page_start(off64_t offset) {
@@ -53,7 +55,8 @@ MappedFileFragment::MappedFileFragment() : map_start_(nullptr), map_size_(0),
 
 MappedFileFragment::~MappedFileFragment() {
   if (map_start_ != nullptr) {
-    munmap(map_start_, map_size_);
+    UnmapViewOfFile(map_start_);
+    CloseHandle((HANDLE)fileMapping);
   }
 }
 
@@ -70,13 +73,13 @@ bool MappedFileFragment::Map(int fd, off64_t base_offset, size_t elf_offset, siz
   size_t map_size = static_cast<size_t>(end_offset - page_min);
   CHECK(map_size >= size);
 
-  uint8_t* map_start = static_cast<uint8_t*>(
-                          mmap64(nullptr, map_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, page_min));
-
-  if (map_start == MAP_FAILED) {
+  fileMapping = (intptr_t)CreateFileMappingW((HANDLE)_get_osfhandle(fd), nullptr, PAGE_WRITECOPY, 0, 0, nullptr);
+  uint8_t* map_start = static_cast<uint8_t*>(MapViewOfFile((HANDLE)fileMapping, FILE_MAP_READ | FILE_MAP_COPY, 0, page_min, map_size));
+  if (!map_start) {
+    auto err = GetLastError();
+    CloseHandle((HANDLE)fileMapping);
     return false;
   }
-
   map_start_ = map_start;
   map_size_ = map_size;
 

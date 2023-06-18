@@ -31,6 +31,7 @@
 #include <strings.h>
 
 #include <string>
+#include <libgen.h>
 
 static std::string current_msg;
 

@@ -30,16 +30,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/param.h>
 #ifdef __linux__
 #include <sys/vfs.h>
 #endif
-#include <unistd.h>
 
 #include <new>
 #include <string>
@@ -71,15 +67,26 @@
 #include "linker_tls.h"
 #include "linker_utils.h"
 
-#include "private/bionic_call_ifunc_resolver.h"
-#include "private/bionic_globals.h"
 #include "android-base/macros.h"
 #include "android-base/strings.h"
 #include "android-base/stringprintf.h"
 #include "ziparchive/zip_archive.h"
+#include "private/bionic_call_ifunc_resolver.h"
+#include "private/bionic_globals.h"
 #ifdef __linux__
 #include <linux/magic.h>
 #endif
+#include <io.h>
+#define NO_DIRNAME
+#include <libgen.h>
+
+#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 
 static std::unordered_map<void*, size_t> g_dso_handle_counters;
 
@@ -144,10 +151,6 @@ static const char* const kAsanDefaultLdPaths[] = {
 static bool g_is_asan = false;
 
 static CFIShadowWriter g_cfi_shadow;
-
-CFIShadowWriter* get_cfi_shadow() {
-  return &g_cfi_shadow;
-}
 
 static bool is_system_library(const std::string& realpath) {
   for (const auto& dir : g_default_namespace.get_default_library_paths()) {
@@ -348,13 +351,13 @@ static void soinfo_free(soinfo* si) {
   }
 
   if (si->base != 0 && si->size != 0) {
-    if (!si->is_mapped_by_caller()) {
-      munmap(reinterpret_cast<void*>(si->base), si->size);
-    } else {
-      // remap the region as PROT_NONE, MAP_ANONYMOUS | MAP_NORESERVE
-      mmap(reinterpret_cast<void*>(si->base), si->size, PROT_NONE,
-           MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-    }
+    // if (!si->is_mapped_by_caller()) {
+    //   munmap(reinterpret_cast<void*>(si->base), si->size);
+    // } else {
+    //   // remap the region as PROT_NONE, MAP_ANONYMOUS | MAP_NORESERVE
+    //   mmap(reinterpret_cast<void*>(si->base), si->size, PROT_NONE,
+    //        MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    // }
   }
 
   TRACE("name %s: freeing soinfo @ %p", si->get_realpath(), si);
@@ -399,6 +402,8 @@ static bool realpath_fd(int fd, std::string* realpath) {
     return false;
   }
   auto length = PATH_MAX;
+#elif _WIN32
+  DWORD length = GetFinalPathNameByHandleA((HANDLE)_get_osfhandle(fd), buf, PATH_MAX, FILE_NAME_NORMALIZED);
 #else
   async_safe_format_buffer(proc_self_fd, sizeof(proc_self_fd), "/proc/self/fd/%d", fd);
   auto length = readlink(proc_self_fd, buf, sizeof(buf));
@@ -489,7 +494,7 @@ int do_dl_iterate_phdr(int (*cb)(dl_phdr_info* info, size_t size, void* data), v
 
 ProtectedDataGuard::ProtectedDataGuard() {
   if (ref_count_++ == 0) {
-    protect_data(PROT_READ | PROT_WRITE);
+    protect_data(0);
   }
 
   if (ref_count_ == 0) { // overflow
@@ -499,7 +504,7 @@ ProtectedDataGuard::ProtectedDataGuard() {
 
 ProtectedDataGuard::~ProtectedDataGuard() {
   if (--ref_count_ == 0) {
-    protect_data(PROT_READ | PROT_WRITE);
+    protect_data(0);
   }
 }
 
@@ -931,91 +936,16 @@ bool ZipArchiveCache::get_or_open(const char* zip_path, ZipArchiveHandle* handle
     return false;
   }
 
-  if (OpenArchiveFd(fd, "", handle) != 0) {
-    // invalid zip-file (?)
-    CloseArchive(*handle);
-    return false;
-  }
-
-  cache_[key] = *handle;
-  return true;
+  return false;
 }
 
 ZipArchiveCache::~ZipArchiveCache() {
-  for (const auto& it : cache_) {
-    CloseArchive(it.second);
-  }
 }
 
 static int open_library_in_zipfile(ZipArchiveCache* zip_archive_cache,
                                    const char* const input_path,
                                    off64_t* file_offset, std::string* realpath) {
-  std::string normalized_path;
-  if (!normalize_path(input_path, &normalized_path)) {
-    return -1;
-  }
-
-  const char* const path = normalized_path.c_str();
-  TRACE("Trying zip file open from path \"%s\" -> normalized \"%s\"", input_path, path);
-
-  // Treat an '!/' separator inside a path as the separator between the name
-  // of the zip file on disk and the subdirectory to search within it.
-  // For example, if path is "foo.zip!/bar/bas/x.so", then we search for
-  // "bar/bas/x.so" within "foo.zip".
-  const char* const separator = strstr(path, kZipFileSeparator);
-  if (separator == nullptr) {
-    return -1;
-  }
-
-  char buf[512];
-  if (strlcpy(buf, path, sizeof(buf)) >= sizeof(buf)) {
-    PRINT("Warning: ignoring very long library path: %s", path);
-    return -1;
-  }
-
-  buf[separator - path] = '\0';
-
-  const char* zip_path = buf;
-  const char* file_path = &buf[separator - path + 2];
-  int fd = TEMP_FAILURE_RETRY(open(zip_path, O_RDONLY | O_CLOEXEC));
-  if (fd == -1) {
-    return -1;
-  }
-
-  ZipArchiveHandle handle;
-  if (!zip_archive_cache->get_or_open(zip_path, &handle)) {
-    // invalid zip-file (?)
-    close(fd);
-    return -1;
-  }
-
-  ZipEntry entry;
-
-  if (FindEntry(handle, file_path, &entry) != 0) {
-    // Entry was not found.
-    close(fd);
-    return -1;
-  }
-
-  // Check if it is properly stored
-  if (entry.method != kCompressStored || (entry.offset % PAGE_SIZE) != 0) {
-    close(fd);
-    return -1;
-  }
-
-  *file_offset = entry.offset;
-
-  if (realpath_fd(fd, realpath)) {
-    *realpath += separator;
-  } else {
-    if (!is_first_stage_init()) {
-      PRINT("warning: unable to get realpath for the library \"%s\". Will use given path.",
-            normalized_path.c_str());
-    }
-    *realpath = normalized_path;
-  }
-
-  return fd;
+  return -1;
 }
 
 static bool format_path(char* buf, size_t buf_size, const char* path, const char* name) {
@@ -1079,7 +1009,7 @@ static int open_library(android_namespace_t* ns,
   TRACE("[ opening %s from namespace %s ]", name, ns->get_name());
 
   // If the name contains a slash, we should attempt to open it directly and not search the paths.
-  if (strchr(name, '/') != nullptr) {
+  if (strchr(name, '/') != nullptr || strchr(name, '\\') != nullptr) {
     int fd = -1;
 
     if (strstr(name, kZipFileSeparator) != nullptr) {
@@ -1864,8 +1794,7 @@ bool find_libraries(android_namespace_t* ns,
         //   __libc_shared_globals()->load_hook(si->load_bias, si->phdr, si->phnum);
         // }
         lookup_list.set_dt_symbolic_lib(si->has_DT_SYMBOLIC ? si : nullptr);
-        if (!si->link_image(lookup_list, local_group_root, link_extinfo, &relro_fd_offset) ||
-            !get_cfi_shadow()->AfterLoad(si, solist_get_head())) {
+        if (!si->link_image(lookup_list, local_group_root, link_extinfo, &relro_fd_offset)) {
           return false;
         }
       }
@@ -2009,7 +1938,6 @@ static void soinfo_unload_impl(soinfo* root) {
     // if (__libc_shared_globals()->unload_hook) {
     //   __libc_shared_globals()->unload_hook(si->load_bias, si->phdr, si->phnum);
     // }
-    get_cfi_shadow()->BeforeUnload(si);
     soinfo_free(si);
   }
 
@@ -2933,6 +2861,14 @@ bool soinfo::relocate_relr() {
 
 // An empty list of soinfos
 static soinfo_list_t g_empty_list;
+
+#undef powerof2
+#define powerof2(x)                                               \
+  ({                                                              \
+    __typeof__(x) _x = (x);                                       \
+    __typeof__(x) _x2;                                            \
+    __builtin_add_overflow(_x, -1, &_x2) ? 1 : ((_x2 & _x) == 0); \
+  })
 
 bool soinfo::prelink_image() {
   if (flags_ & FLAG_PRELINKED) return true;

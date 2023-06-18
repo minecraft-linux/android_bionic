@@ -36,7 +36,7 @@
 
 __BEGIN_DECLS
 
-#if defined(__LP64__)
+#if defined(__LP64__) || defined(__x86_64__)
 #define ElfW(type) Elf64_ ## type
 #else
 #define ElfW(type) Elf32_ ## type

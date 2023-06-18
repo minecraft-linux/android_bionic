@@ -35,7 +35,6 @@
 #include <vector>
 #include <unordered_map>
 
-#include "private/bionic_elf_tls.h"
 #include "linker_namespaces.h"
 #include "linker_tls.h"
 
@@ -147,8 +146,7 @@ struct version_info {
 class VersionTracker;
 
 struct soinfo_tls {
-  TlsSegment segment;
-  size_t module_id = kTlsUninitializedModuleId;
+  
 };
 
 #if defined(__work_around_b_24465209__)
@@ -346,7 +344,7 @@ struct soinfo {
   android_namespace_list_t& get_secondary_namespaces();
 
   soinfo_tls* get_tls() const {
-    return has_min_version(5) ? tls_.get() : nullptr;
+    return nullptr;
   }
 
   void set_mapped_by_caller(bool reserved_map);
@@ -436,10 +434,6 @@ struct soinfo {
   // version >= 4
   ElfW(Relr)* relr_;
   size_t relr_count_;
-
-  // version >= 5
-  std::unique_ptr<soinfo_tls> tls_;
-  std::vector<TlsDynamicResolverArg> tlsdesc_args_;
 
 public:
   struct HookEntry {

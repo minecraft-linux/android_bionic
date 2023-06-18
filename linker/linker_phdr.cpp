@@ -140,6 +140,10 @@ static int GetTargetElfMachine() {
 
  **/
 
+#define PROT_EXEC 1
+#define PROT_READ 2
+#define PROT_WRITE 4
+
 #define MAYBE_MAP_FLAG(x, from, to)  (((x) & (from)) ? (to) : 0)
 #define PFLAGS_TO_PROT(x)            (MAYBE_MAP_FLAG((x), PF_X, PROT_EXEC) | \
                                       MAYBE_MAP_FLAG((x), PF_R, PROT_READ) | \
@@ -535,11 +539,28 @@ size_t phdr_table_get_load_size(const ElfW(Phdr)* phdr_table, size_t phdr_count,
   }
   return max_vaddr - min_vaddr;
 }
+#if _WIN32
+#include <windows.h>
+#endif
 
 // Reserve a virtual address range such that if it's limits were extended to the next 2**align
 // boundary, it would not overlap with any existing mappings.
 static void* ReserveAligned(size_t size, size_t align) {
-#if defined(__APPLE__) && defined(__aarch64__)
+#if _WIN32
+  size_t mmap_size = align_up(size, align) + align - PAGE_SIZE;
+  uint8_t* mmap_ptr = reinterpret_cast<uint8_t*>(VirtualAlloc(nullptr, mmap_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+  if(!mmap_ptr) {
+    return nullptr;
+  }
+  uint8_t* first = align_up(mmap_ptr, align);
+  uint8_t* last = align_down(mmap_ptr + mmap_size, align) - size;
+
+  // arc4random* is not available in first stage init because /dev/urandom hasn't yet been
+  // created. Don't randomize then.
+  size_t n = 0;//is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
+  uint8_t* start = first + n * PAGE_SIZE;
+  return start;
+#elif defined(__APPLE__) && defined(__aarch64__)
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT;
 
   // Allocate enough space so that the end of the desired region aligned up is still inside the
@@ -760,6 +781,31 @@ bool ElfReader::LoadSegments() {
       sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
     }
     INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
+#elif _WIN32
+    void* seg_addr = reinterpret_cast<void*>(seg_page_start);
+
+    if (file_length != 0) {
+      auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
+      if(seekoffset != (file_offset_ + file_page_start)) {
+        DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%lld, seekoffset=%lld", name_.c_str(), i, strerror(errno), (long long)(file_offset_ + file_page_start), (long long)seekoffset);
+        return false;
+      }
+
+      auto remainingBytes = file_length;
+      auto dest = (unsigned char*)seg_addr;
+      unsigned char buffer[4096];
+      while(remainingBytes > 0) {
+        auto expectedreadsize = remainingBytes < 4096 ? remainingBytes : 4096;
+        auto readsize = read(fd_, buffer, expectedreadsize);
+        if(readsize != expectedreadsize) {
+          DL_ERR("couldn't read \"%s\" segment %zd: %s, expectedreadsize=%lld, readsize=%lld, remainingBytes=%lld, file_length=%lld", name_.c_str(), i, strerror(errno), (long long)expectedreadsize, (long long)readsize, (long long)remainingBytes, (long long)file_length);
+          return false;
+        }
+        memcpy(dest, buffer, readsize);
+        dest += readsize;
+        remainingBytes -= readsize;
+      }
+    }
 #else
     if (file_length != 0) {
 #if 0
@@ -990,30 +1036,7 @@ int phdr_table_serialize_gnu_relro(const ElfW(Phdr)* phdr_table,
                                    ElfW(Addr) load_bias,
                                    int fd,
                                    size_t* file_offset) {
-  const ElfW(Phdr)* phdr = phdr_table;
-  const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
-
-  for (phdr = phdr_table; phdr < phdr_limit; phdr++) {
-    if (phdr->p_type != PT_GNU_RELRO) {
-      continue;
-    }
-
-    ElfW(Addr) seg_page_start = PAGE_START(phdr->p_vaddr) + load_bias;
-    ElfW(Addr) seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz) + load_bias;
-    ssize_t size = seg_page_end - seg_page_start;
-
-    ssize_t written = TEMP_FAILURE_RETRY(write(fd, reinterpret_cast<void*>(seg_page_start), size));
-    if (written != size) {
-      return -1;
-    }
-    void* map = mmap(reinterpret_cast<void*>(seg_page_start), size, PROT_READ | PROT_WRITE,
-                     MAP_PRIVATE|MAP_FIXED, fd, *file_offset);
-    if (map == MAP_FAILED) {
-      return -1;
-    }
-    *file_offset += size;
-  }
-  return 0;
+  return -1;
 }
 
 /* Where possible, replace the GNU relro segments with mappings of the given
@@ -1038,76 +1061,7 @@ int phdr_table_map_gnu_relro(const ElfW(Phdr)* phdr_table,
                              ElfW(Addr) load_bias,
                              int fd,
                              size_t* file_offset) {
-  // Map the file at a temporary location so we can compare its contents.
-  struct stat file_stat;
-  if (TEMP_FAILURE_RETRY(fstat(fd, &file_stat)) != 0) {
-    return -1;
-  }
-  off_t file_size = file_stat.st_size;
-  void* temp_mapping = nullptr;
-  if (file_size > 0) {
-    temp_mapping = mmap(nullptr, file_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-    if (temp_mapping == MAP_FAILED) {
-      return -1;
-    }
-  }
-
-  // Iterate over the relro segments and compare/remap the pages.
-  const ElfW(Phdr)* phdr = phdr_table;
-  const ElfW(Phdr)* phdr_limit = phdr + phdr_count;
-
-  for (phdr = phdr_table; phdr < phdr_limit; phdr++) {
-    if (phdr->p_type != PT_GNU_RELRO) {
-      continue;
-    }
-
-    ElfW(Addr) seg_page_start = PAGE_START(phdr->p_vaddr) + load_bias;
-    ElfW(Addr) seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz) + load_bias;
-
-    char* file_base = static_cast<char*>(temp_mapping) + *file_offset;
-    char* mem_base = reinterpret_cast<char*>(seg_page_start);
-    size_t match_offset = 0;
-    size_t size = seg_page_end - seg_page_start;
-
-    if (file_size - *file_offset < size) {
-      // File is too short to compare to this segment. The contents are likely
-      // different as well (it's probably for a different library version) so
-      // just don't bother checking.
-      break;
-    }
-
-    while (match_offset < size) {
-      // Skip over dissimilar pages.
-      while (match_offset < size &&
-             memcmp(mem_base + match_offset, file_base + match_offset, PAGE_SIZE) != 0) {
-        match_offset += PAGE_SIZE;
-      }
-
-      // Count similar pages.
-      size_t mismatch_offset = match_offset;
-      while (mismatch_offset < size &&
-             memcmp(mem_base + mismatch_offset, file_base + mismatch_offset, PAGE_SIZE) == 0) {
-        mismatch_offset += PAGE_SIZE;
-      }
-
-      // Map over similar pages.
-      if (mismatch_offset > match_offset) {
-        void* map = mmap(mem_base + match_offset, mismatch_offset - match_offset,
-                         PROT_READ | PROT_WRITE, MAP_PRIVATE|MAP_FIXED, fd, *file_offset + match_offset);
-        if (map == MAP_FAILED) {
-          munmap(temp_mapping, file_size);
-          return -1;
-        }
-      }
-
-      match_offset = mismatch_offset;
-    }
-
-    // Add to the base file offset in case there are multiple relro segments.
-    *file_offset += size;
-  }
-  munmap(temp_mapping, file_size);
-  return 0;
+  return -1;
 }
 
 

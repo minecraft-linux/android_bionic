@@ -30,7 +30,8 @@
 
 #include <stdlib.h>
 
-#include "private/bionic_elf_tls.h"
+struct TlsSegment {};
+typedef int TlsIndex;
 
 struct TlsModule;
 struct soinfo;

@@ -43,13 +43,13 @@
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include <android/set_abort_message.h>
 #include <async_safe/log.h>
 
 // #include "private/CachedProperty.h"
 #include "private/ErrnoRestorer.h"
-#include "private/ScopedPthreadMutexLocker.h"
 
 #if 0
 // Don't call libc's close, since it might call back into us as a result of fdsan.
@@ -114,7 +114,7 @@ struct FdOutputStream {
     total += len;
 
     while (len > 0) {
-      ssize_t bytes = TEMP_FAILURE_RETRY(write(fd_, data, len));
+      ssize_t bytes = write(fd_, data, len);
       if (bytes == -1) {
         return;
       }
@@ -442,17 +442,8 @@ int async_safe_format_fd(int fd, const char* format, ...) {
 }
 
 static int write_stderr(const char* tag, const char* msg) {
-  iovec vec[4];
-  vec[0].iov_base = const_cast<char*>(tag);
-  vec[0].iov_len = strlen(tag);
-  vec[1].iov_base = const_cast<char*>(": ");
-  vec[1].iov_len = 2;
-  vec[2].iov_base = const_cast<char*>(msg);
-  vec[2].iov_len = strlen(msg);
-  vec[3].iov_base = const_cast<char*>("\n");
-  vec[3].iov_len = 1;
+  int result = fprintf(stderr, "%s: %s\n", tag, msg);
 
-  int result = TEMP_FAILURE_RETRY(writev(STDERR_FILENO, vec, 4));
   return result;
 }
 
@@ -499,31 +490,7 @@ int async_safe_write_log(int priority, const char* tag, const char* msg) {
     return write_stderr(tag, msg);
   }
 
-  iovec vec[6];
-  char log_id = (priority == ANDROID_LOG_FATAL) ? LOG_ID_CRASH : LOG_ID_MAIN;
-  vec[0].iov_base = &log_id;
-  vec[0].iov_len = sizeof(log_id);
-  uint16_t tid = gettid();
-  vec[1].iov_base = &tid;
-  vec[1].iov_len = sizeof(tid);
-  timespec ts;
-  clock_gettime(CLOCK_REALTIME, &ts);
-  log_time realtime_ts;
-  realtime_ts.tv_sec = ts.tv_sec;
-  realtime_ts.tv_nsec = ts.tv_nsec;
-  vec[2].iov_base = &realtime_ts;
-  vec[2].iov_len = sizeof(realtime_ts);
-
-  vec[3].iov_base = &priority;
-  vec[3].iov_len = 1;
-  vec[4].iov_base = const_cast<char*>(tag);
-  vec[4].iov_len = strlen(tag) + 1;
-  vec[5].iov_base = const_cast<char*>(msg);
-  vec[5].iov_len = strlen(msg) + 1;
-
-  int result = TEMP_FAILURE_RETRY(writev(main_log_fd, vec, sizeof(vec) / sizeof(vec[0])));
-  __close(main_log_fd);
-  return result;
+  return -1;
 }
 
 int async_safe_format_log_va_list(int priority, const char* tag, const char* format, va_list args) {
@@ -554,10 +521,7 @@ void async_safe_fatal_va_list(const char* prefix, const char* format, va_list ar
   out_vformat(os, format, args);
 
   // Log to stderr for the benefit of "adb shell" users and gtests.
-  struct iovec iov[2] = {
-      {msg, strlen(msg)}, {const_cast<char*>("\n"), 1},
-  };
-  TEMP_FAILURE_RETRY(writev(2, iov, 2));
+  fprintf(stderr, "%s\n", msg);
 
   // Log to the log for the benefit of regular app developers (whose stdout and stderr are closed).
   async_safe_write_log(ANDROID_LOG_FATAL, "libc", msg);

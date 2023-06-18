@@ -37,6 +37,14 @@
 #include <unistd.h>
 #include <string.h>
 
+#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+
 void format_string(std::string* str, const std::vector<std::pair<std::string, std::string>>& params) {
   size_t pos = 0;
   while (pos < str->size()) {
@@ -256,6 +264,5 @@ std::string resolve_path(const std::string& path) {
 }
 
 bool is_first_stage_init() {
-  static bool ret = (getpid() == 1 && access("/proc/self/exe", F_OK) == -1);
-  return ret;
+  return false;
 }

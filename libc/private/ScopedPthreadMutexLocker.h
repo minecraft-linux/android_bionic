@@ -22,16 +22,16 @@
 
 class ScopedPthreadMutexLocker {
  public:
-  explicit ScopedPthreadMutexLocker(pthread_mutex_t* mu) : mu_(mu) {
-    pthread_mutex_lock(mu_);
+  explicit ScopedPthreadMutexLocker(std::mutex* mu) : mu_(mu) {
+    mu_->lock();
   }
 
   ~ScopedPthreadMutexLocker() {
-    pthread_mutex_unlock(mu_);
+    mu_->unlock();
   }
 
  private:
-  pthread_mutex_t* mu_;
+  std::mutex* mu_;
 
   BIONIC_DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedPthreadMutexLocker);
 };
