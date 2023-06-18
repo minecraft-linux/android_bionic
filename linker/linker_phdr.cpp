@@ -798,6 +798,9 @@ bool ElfReader::LoadSegments() {
         auto expectedreadsize = remainingBytes < 4096 ? remainingBytes : 4096;
         auto readsize = read(fd_, buffer, expectedreadsize);
         if(readsize != expectedreadsize) {
+          if(readsize > 0) {
+            continue;
+          }
           DL_ERR("couldn't read \"%s\" segment %zd: %s, expectedreadsize=%lld, readsize=%lld, remainingBytes=%lld, file_length=%lld", name_.c_str(), i, strerror(errno), (long long)expectedreadsize, (long long)readsize, (long long)remainingBytes, (long long)file_length);
           return false;
         }

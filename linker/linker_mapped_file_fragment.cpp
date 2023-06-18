@@ -56,7 +56,7 @@ MappedFileFragment::MappedFileFragment() : map_start_(nullptr), map_size_(0),
 MappedFileFragment::~MappedFileFragment() {
   if (map_start_ != nullptr) {
     UnmapViewOfFile(map_start_);
-    CloseHandle((HANDLE)fileMapping);
+    VirtualFree(map_start_, map_size_, MEM_RELEASE);
   }
 }
 
@@ -73,13 +73,14 @@ bool MappedFileFragment::Map(int fd, off64_t base_offset, size_t elf_offset, siz
   size_t map_size = static_cast<size_t>(end_offset - page_min);
   CHECK(map_size >= size);
 
-  fileMapping = (intptr_t)CreateFileMappingW((HANDLE)_get_osfhandle(fd), nullptr, PAGE_WRITECOPY, 0, 0, nullptr);
-  uint8_t* map_start = static_cast<uint8_t*>(MapViewOfFile((HANDLE)fileMapping, FILE_MAP_READ | FILE_MAP_COPY, 0, page_min, map_size));
+  uint8_t* map_start = static_cast<uint8_t*>(VirtualAlloc(nullptr, map_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
   if (!map_start) {
     auto err = GetLastError();
-    CloseHandle((HANDLE)fileMapping);
     return false;
   }
+  lseek(fd, page_min, SEEK_SET);
+  read(fd, map_start, map_size);
+
   map_start_ = map_start;
   map_size_ = map_size;
 
