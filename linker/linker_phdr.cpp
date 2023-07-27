@@ -829,6 +829,24 @@ bool ElfReader::LoadSegments() {
           }
         }
       }
+
+      if(phdr->p_flags & PF_X) {
+        unsigned char seq1[] = { 0x64, 0x4C, 0x8B };
+        unsigned char seq2[] = { 0x25, 0x28, 0x00, 0x00, 0x00 };
+        //64 4? 8B ?? 25 28 00 00 00
+        auto tcboffset = (long long)offsetof(TEB, TlsSlots) + 8 * tlsindex;
+        for(unsigned char* addr = reinterpret_cast<unsigned char*>(seg_page_start), *end = reinterpret_cast<unsigned char*>(seg_page_end) - 8; addr < end; addr++) {
+          if(memcmp(seq1, addr, sizeof(seq1)) == 0 && memcmp(seq2, addr + sizeof(seq1) + 1, sizeof(seq2)) == 0) {
+            addr[0] = 0x65;
+            addr[5] = tcboffset & 0xff;
+            addr[6] = (tcboffset >> 8) & 0xff;
+            addr[7] = (tcboffset >> 16) & 0xff;
+            addr[8] = (tcboffset >> 24) & 0xff;
+            //65 48 8b YY 25 XX XX 00 00
+            addr += sizeof(seq1) + sizeof(seq2);
+          }
+        }
+      }
     }
 #else
     if (file_length != 0) {

@@ -70,8 +70,8 @@
 
 ElfW(Addr) call_ifunc_resolver(ElfW(Addr) resolver_addr);
 
-typedef void (*linker_dtor_function_t)();
-typedef void (*linker_ctor_function_t)(int, char**, char**);
+typedef void (__attribute__((sysv_abi)) *linker_dtor_function_t)();
+typedef void (__attribute__((sysv_abi)) *linker_ctor_function_t)(int, char**, char**);
 
 // An entry within a SymbolLookupList.
 struct SymbolLookupLib {

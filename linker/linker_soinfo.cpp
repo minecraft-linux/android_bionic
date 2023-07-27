@@ -495,6 +495,9 @@ static void call_function(const char* function_name __unused,
   }
 
   TRACE("[ Calling c-tor %s @ %p for '%s' ]", function_name, function, realpath);
+  // char buf[0x249f8];
+  // memset(buf, 0 , sizeof(buf));
+  // function(g_argc, (char**)&buf, g_envp);
   function(g_argc, g_argv, g_envp);
   TRACE("[ Done calling c-tor %s @ %p for '%s' ]", function_name, function, realpath);
 }

@@ -116,8 +116,9 @@ static inline bool lookup_symbol(Relocator& relocator, uint32_t r_sym, const cha
 
   if (*sym == nullptr) {
     if (ELF_ST_BIND(relocator.si_symtab[r_sym].st_info) != STB_WEAK) {
-      DL_ERR("cannot locate symbol \"%s\" referenced by \"%s\"...", sym_name, relocator.si->get_realpath());
-      return false;
+      printf("\"%s\",\n", sym_name);
+      // DL_ERR("cannot locate symbol \"%s\" referenced by \"%s\"...", sym_name, relocator.si->get_realpath());
+      // return false;
     }
   }
 
