@@ -45,6 +45,19 @@ static off64_t __page_start(off64_t offset) {
 static size_t __page_offset(off64_t offset) {
   return static_cast<size_t>(offset & (4*4096-1));
 }
+#elif defined(__linux__)
+#include <unistd.h>
+#ifdef _SC_PAGESIZE
+#define page_start __page_start
+#define page_offset __page_offset
+static off64_t __page_start(off64_t offset) {
+  return offset & ~static_cast<off64_t>(sysconf(_SC_PAGESIZE)-1);
+}
+
+static size_t __page_offset(off64_t offset) {
+  return static_cast<size_t>(offset & (sysconf(_SC_PAGESIZE)-1));
+}
+#endif
 #endif
 
 MappedFileFragment::MappedFileFragment() : map_start_(nullptr), map_size_(0),

@@ -553,20 +553,25 @@ static void* ReserveAligned(size_t size, size_t align) {
 
   uint8_t* first = align_up(mmap_ptr, align);
   uint8_t* last = align_down(mmap_ptr + mmap_size, align) - size;
-
-  // arc4random* is not available in first stage init because /dev/urandom hasn't yet been
-  // created. Don't randomize then.
-  size_t n = 0;//is_first_stage_init() ? 0 : arc4random_uniform((last - first) / PAGE_SIZE + 1);
+  size_t n = 0;
   uint8_t* start = first + n * PAGE_SIZE;
 
-  //munmap(mmap_ptr, start - mmap_ptr);
-  //munmap(start + size, mmap_ptr + mmap_size - (start + size));
   INFO("Allocated RWX MAP_JIT segment @ %p size %lld", reinterpret_cast<void*>(start), (long long)size);
   return start;
 #else
+  int prot = PROT_NONE;
+#if defined(__linux__) && defined(_SC_PAGESIZE)
+  long pagesize = sysconf(_SC_PAGESIZE);
+  if(pagesize != 4096) {
+    WARN("Detected an Android Binary incompatible pagesize of %lld bytes, usually android has a fixed pagesize of 4096", (long long)pagesize);
+    INFO("Allocating a big RWX segment and copying the elf manually into memory");
+    prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+  }
+#endif
+
   int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
   if (align == PAGE_SIZE) {
-    void* mmap_ptr = mmap(nullptr, size, PROT_NONE, mmap_flags, -1, 0);
+    void* mmap_ptr = mmap(nullptr, size, prot, mmap_flags, -1, 0);
     if (mmap_ptr == MAP_FAILED) {
       return nullptr;
     }
@@ -577,7 +582,7 @@ static void* ReserveAligned(size_t size, size_t align) {
   // mapping.
   size_t mmap_size = align_up(size, align) + align - PAGE_SIZE;
   uint8_t* mmap_ptr =
-      reinterpret_cast<uint8_t*>(mmap(nullptr, mmap_size, PROT_NONE, mmap_flags, -1, 0));
+      reinterpret_cast<uint8_t*>(mmap(nullptr, mmap_size, prot, mmap_flags, -1, 0));
   if (mmap_ptr == MAP_FAILED) {
     return nullptr;
   }
@@ -761,6 +766,36 @@ bool ElfReader::LoadSegments() {
     }
     INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
 #else
+#if defined(__linux__) && defined(_SC_PAGESIZE)
+    if(sysconf(_SC_PAGESIZE) != 4096) {
+      void* seg_addr = reinterpret_cast<void*>(seg_page_start);
+
+      if (file_length != 0) {
+        auto seekoffset = lseek(fd_, file_offset_ + file_page_start, SEEK_SET);
+        if(seekoffset != (file_offset_ + file_page_start)) {
+          DL_ERR("couldn't lseek \"%s\" segment %zd: %s, (file_offset_ + file_page_start)=%lld, seekoffset=%lld", name_.c_str(), i, strerror(errno), (long long)(file_offset_ + file_page_start), (long long)seekoffset);
+          return false;
+        }
+
+        auto remainingBytes = file_length;
+        auto dest = (unsigned char*)seg_addr;
+        unsigned char buffer[4096];
+        while(remainingBytes > 0) {
+          auto expectedreadsize = remainingBytes < 4096 ? remainingBytes : 4096;
+          auto readsize = read(fd_, buffer, expectedreadsize);
+          if(readsize != expectedreadsize) {
+            DL_ERR("couldn't read \"%s\" segment %zd: %s, expectedreadsize=%lld, readsize=%lld, remainingBytes=%lld, file_length=%lld", name_.c_str(), i, strerror(errno), (long long)expectedreadsize, (long long)readsize, (long long)remainingBytes, (long long)file_length);
+            return false;
+          }
+          memcpy(dest, buffer, readsize);
+          dest += readsize;
+          remainingBytes -= readsize;
+        }
+      }
+      INFO("[LoadedSegement] %s %zd @ %p file_length=%lld seg_start=%p seg_end=%p load_bias_=%p", name_.c_str(), i, seg_addr, file_length, seg_start, seg_end, load_bias_);
+      continue;
+    }
+#endif
     if (file_length != 0) {
 #if 0
       if ((prot & (PROT_EXEC | PROT_WRITE)) == (PROT_EXEC | PROT_WRITE)) {
