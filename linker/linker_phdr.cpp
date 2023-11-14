@@ -563,7 +563,7 @@ static void* ReserveAligned(size_t size, size_t align) {
 #if defined(__linux__) && defined(_SC_PAGESIZE)
   long pagesize = sysconf(_SC_PAGESIZE);
   if(pagesize != 4096) {
-    WARN("Detected an Android Binary incompatible pagesize of %lld bytes, usually android has a fixed pagesize of 4096", (long long)pagesize);
+    PRINT("Detected an Android Binary incompatible pagesize of %lld bytes, usually android has a fixed pagesize of 4096", (long long)pagesize);
     INFO("Allocating a big RWX segment and copying the elf manually into memory");
     prot = PROT_READ | PROT_WRITE | PROT_EXEC;
   }
