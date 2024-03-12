@@ -340,7 +340,7 @@ const ElfW(Sym)* soinfo::find_symbol_by_name(SymbolName& symbol_name,
       ret = &sym->second->symbol;
     }
   }
-  if(this->bucket_) {
+  if(this->bucket_ || is_gnu_hash()) {
     auto&& ret2 = is_gnu_hash() ? gnu_lookup(symbol_name, vi) : elf_lookup(symbol_name, vi);
     if(!ret) {
       return ret2;
