@@ -543,7 +543,7 @@ void soinfo::call_pre_init_constructors() {
   call_array("DT_PREINIT_ARRAY", preinit_array_, preinit_array_count_, false, get_realpath());
 }
 
-extern "C" void mcpelauncher_linker_notifylldb(const char* filename, size_t offset) {
+extern "C" __attribute__((noinline)) void mcpelauncher_linker_notifylldb(const char* filename, size_t offset) {
   _PRINTVF(-2, "mcpelauncher_linker_notifylldb %s 0x%llx", filename, (long long)offset);
 }
 
