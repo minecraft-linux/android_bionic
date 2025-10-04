@@ -822,12 +822,12 @@ bool ElfReader::LoadSegments() {
         return false;
       }
 #if defined(__APPLE__) && defined(__x86_64__)
-      // Patch access to the fs:0x28 register .to read gs:0x28 instead to avoid an 0x28 access error
+      // Patch access to the fs:0x28 register to read gs:0x28 instead to avoid an 0x28 access error
       // which cannot be ignored to handle it in a signal handler in lldb
       if(phdr->p_flags & PF_X) {
         //64 4? 8B ?? 25 28 00 00
-        uint64_t patt = 0x64408B00252800;
-        uint64_t mask = 0xFFF0FF00FFFFFF;
+        uint64_t patt = 0x00002825008B4064ULL;
+        uint64_t mask = 0xFFFFFFFF00FFF0FFULL;
         for(unsigned char* addr = reinterpret_cast<unsigned char*>(seg_page_start), *end = reinterpret_cast<unsigned char*>(seg_page_end) - 8; addr < end; addr++) {
           if((*reinterpret_cast<uint64_t*>(addr) & mask) == patt) {
             *addr = 0x65;
