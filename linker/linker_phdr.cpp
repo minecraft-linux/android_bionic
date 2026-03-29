@@ -760,6 +760,11 @@ bool ElfReader::LoadSegments() {
         if((*c & 0xffffffe0) == 0xd53bd040) {
           *c = 0xd53bd060 | (*c & 0x0000001f);
         }
+        // Replace svc #0 by nop
+        // Avoid lldb spam and macOS 26 VM allows to run this
+        if((*c) == 0xd4000001) {
+          *c = 0xD503201F;
+        }
       }
       INFO("[macOS/m1] sys_icache_invalidate");
       sys_icache_invalidate(reinterpret_cast<void*>(seg_page_start), seg_page_end - seg_page_start);
