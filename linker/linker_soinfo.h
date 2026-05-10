@@ -212,6 +212,9 @@ struct soinfo {
   size_t rel_count_;
 #endif
 
+  // .got.plt base address (from DT_PLTGOT), used for PLT fixup on x86_64
+  ElfW(Addr)* plt_got_addr_ = nullptr;
+
   linker_ctor_function_t* preinit_array_;
   size_t preinit_array_count_;
 

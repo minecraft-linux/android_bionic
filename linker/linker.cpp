@@ -3087,7 +3087,8 @@ bool soinfo::prelink_image() {
         // Used by mips and mips64.
         plt_got_ = reinterpret_cast<ElfW(Addr)**>(load_bias + d->d_un.d_ptr);
 #endif
-        // Ignore for other platforms... (because RTLD_LAZY is not supported)
+        // Store for all platforms - needed for PLT fixup of unrelocated entries
+        plt_got_addr_ = reinterpret_cast<ElfW(Addr)*>(load_bias + d->d_un.d_ptr);
         break;
 
       case DT_DEBUG:
