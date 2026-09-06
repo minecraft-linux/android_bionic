@@ -3196,7 +3196,6 @@ bool soinfo::prelink_image() {
         return false;
 
 #endif
-#if 0
       case DT_RELR:
       case DT_ANDROID_RELR:
         relr_ = reinterpret_cast<ElfW(Relr)*>(load_bias + d->d_un.d_ptr);
@@ -3214,7 +3213,6 @@ bool soinfo::prelink_image() {
           return false;
         }
         break;
-#endif
       // Ignored (see DT_RELCOUNT comments for details).
       // There is no DT_RELRCOUNT specifically because it would only be ignored.
       case DT_ANDROID_RELRCOUNT:
